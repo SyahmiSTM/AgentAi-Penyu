@@ -76,11 +76,11 @@ DIRECTIONS = [(-1, 0, "up"), (1, 0, "down"), (0, -1, "left"), (0, 1, "right")]
 DEFAULT_TILE_COST = 1
 DEFAULT_SPIKE_COST = 100
 
-# Challenge tiles that can optionally be routed over deliberately for points.
-# Split into FAST (instant answer, no sub-agent LLM call needed) and SLOW
-# (require sub-agent round-trip: ~8-12s each, risks timeout).
-# Only FAST challenges are detoured to by default. SLOW ones are only visited
-# if they happen to be ON the path (incidental), never as deliberate detours.
+# Challenge tiles split by response time.
+# FAST: instant answers (guardrail/direct knowledge), always detoured to.
+# SLOW: require sub-agent LLM calls (~8-12s each).
+# By default, SLOW challenges are visited ONLY if on the natural path.
+# Set include_slow_challenges=True to detour to ALL challenges regardless of speed.
 FAST_CHALLENGE_TILES = {"c1", "c5", "c17", "c18"}
 SLOW_CHALLENGE_TILES = {"c2", "c3", "c4", "c6"}
 CHALLENGE_TILES = FAST_CHALLENGE_TILES | SLOW_CHALLENGE_TILES
@@ -189,12 +189,11 @@ def lambda_handler(event, context):
 
         strategy = _normalise_strategy(body.get('strategy', 'key_first'))
         spike_cost = _positive_int(body.get('spike_cost'), DEFAULT_SPIKE_COST)
+        include_slow = bool(body.get('include_slow_challenges', False))
         include_challenges = body.get('include_challenges')
         if include_challenges is None:
             # Default: always include challenges for key_first/optimal strategy.
-            # Challenge tiles (c1-c6, c17, c18) are worth 250-600 points each,
-            # far more than the marginal token cost of visiting them. The optimizer
-            # treats them as optional POIs and skips any behind 2+ spikes.
+            # Challenge tiles are worth 250-600 points each.
             include_challenges = strategy not in ('swift', 'get_coins')
         else:
             include_challenges = bool(include_challenges)
@@ -215,6 +214,7 @@ def lambda_handler(event, context):
                 game_map, rows, cols, start_pos, treasure,
                 spike_cost=spike_cost,
                 include_challenges=include_challenges,
+                include_slow_challenges=include_slow,
             )
             warnings.extend(detail.pop('warnings', []))
 
@@ -409,7 +409,8 @@ class _RouteResult:
 
 
 class _Optimiser:
-    def __init__(self, board, rows, cols, start, treasure, spike_cost, include_challenges):
+    def __init__(self, board, rows, cols, start, treasure, spike_cost,
+                 include_challenges, include_slow_challenges=False):
         self.board = board
         self.rows = rows
         self.cols = cols
@@ -438,6 +439,8 @@ class _Optimiser:
                 elif tile in COLLECTIBLE_COINS:
                     self.coins.append(cell)
                 elif include_challenges and tile in FAST_CHALLENGE_TILES:
+                    self.challenges.append(cell)
+                elif include_slow_challenges and tile in SLOW_CHALLENGE_TILES:
                     self.challenges.append(cell)
 
         # A door with no matching key can never be opened legitimately.
@@ -629,10 +632,11 @@ class _Optimiser:
 
 
 def optimise_route(game_map, rows, cols, start, treasure, spike_cost=DEFAULT_SPIKE_COST,
-                   include_challenges=False):
+                   include_challenges=False, include_slow_challenges=False):
     """Full route optimisation. Returns (moves, detail_dict)."""
     optimiser = _Optimiser(
-        game_map, rows, cols, start, treasure, spike_cost, include_challenges
+        game_map, rows, cols, start, treasure, spike_cost,
+        include_challenges, include_slow_challenges,
     )
     order, best = optimiser.solve()
 
