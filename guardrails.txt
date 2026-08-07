@@ -1,0 +1,145 @@
+
+Guardrail details
+
+= Security_Turtle_7c09
+
+Description - optional
+The description can have up to 200 characters.
+
+= -
+
+Blocked messaging
+Edit
+
+Blocked messaging
+Messaging shown for blocked prompts
+
+= Sorry, the penyu cannot answer this question.
+
+Messaging shown for blocked responses
+
+= Sorry, the penyu cannot answer this question.
+
+==========================================================================================
+==========================================================================================
+Denied Topics (5)
+
+Category: Edible Flowers
+Definition:
+- Content that discusses, lists, or explains which flowers are safe to eat, their culinary use, or nutritional value.
+
+Sample Phrases:
+- What flowers can I eat?
+- List edible flowers
+- Can I put violets in a salad?
+
+Input Action: Block
+Output Action: Block
+
+--------------------------------------------------
+
+Category: Plant Transplanting
+Definition:
+- Content that discusses or gives instructions on moving/transplanting plants, seedlings, or flowers between locations or containers.
+
+Sample Phrases:
+- How do I transplant this plant?
+- Best way to transplant seedlings
+- When to transplant flowers outdoors
+
+Input Action: Block
+Output Action: Block
+
+--------------------------------------------------
+
+Category: Weeds
+Definition:
+- Content that discusses identifying, removing, or controlling weeds or unwanted plants.
+
+Sample Phrases:
+- How do I get rid of weeds?
+- What are common garden weeds?
+- How do I identify a weed?
+
+Input Action: Block
+Output Action: Block
+
+--------------------------------------------------
+
+Category: MedicalAdvice
+Definition:
+- Requests for specific medication recommendations, prescription drug alternatives, dosage equivalencies, or guidance on switching between medications or what dose to take.
+
+Sample Phrases:
+- What medication should I take instead of lisinopril?
+- What dose of losartan equals 10mg lisinopril?
+- What alternative blood pressure medication should I use?
+- Recommend me a drug for my condition
+- What is the equivalent dose when switching medications?
+
+Input Action: Block
+Output Action: Block
+
+--------------------------------------------------
+
+Category: Misconduct
+Definition:
+- Requests enabling misconduct, unethical behavior, deception, cheating, impersonation, or manipulation of people or systems.
+
+Sample Phrases:
+- (None provided)
+
+Input Action: Block
+Output Action: Block
+
+==========================================================================================
+==========================================================================================
+
+Content Filters
+================
+
+Harmful Categories
+
+Prompt Filters (Enabled)
+------------------------
+- Hate Filter for Prompts
+  - Strength: High (Text)
+  - Action: Block
+
+- Insults Filter for Prompts
+  - Strength: Medium (Text)
+  - Action: Block
+
+- Sexual Filter for Prompts
+  - Strength: High (Text)
+  - Action: Block
+
+- Violence Filter for Prompts
+  - Strength: High (Text)
+  - Action: Block
+
+- Misconduct Filter for Prompts
+  - Strength: Medium (Text)
+  - Action: Block
+
+Response Filters (Enabled)
+--------------------------
+- Hate Filter for Responses
+  - Strength: High (Text)
+  - Action: Block
+
+- Insults Filter for Responses
+  - Strength: Medium (Text)
+  - Action: Block
+
+- Sexual Filter for Responses
+  - Strength: High (Text)
+  - Action: Block
+
+- Violence Filter for Responses
+  - Strength: High (Text)
+  - Action: Block
+
+- Misconduct Filter for Responses
+  - Strength: Medium (Text)
+  - Action: Block
