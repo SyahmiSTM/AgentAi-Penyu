@@ -189,7 +189,7 @@ def lambda_handler(event, context):
 
         strategy = _normalise_strategy(body.get('strategy', 'key_first'))
         spike_cost = _positive_int(body.get('spike_cost'), DEFAULT_SPIKE_COST)
-        include_slow = bool(body.get('include_slow_challenges', False))
+        include_slow = bool(body.get('include_slow_challenges', True))
         include_challenges = body.get('include_challenges')
         if include_challenges is None:
             # Default: always include challenges for key_first/optimal strategy.
