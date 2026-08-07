@@ -630,8 +630,8 @@ def _p_primes(q):
             "print(' '.join(str(f) for f in factors))",
         ])
 
-    limit = extract_int(q, [r"(?:below|under|less than|up to|beneath|smaller than)\s*(\d[\d,\s]*)"])
-    if limit and ("sum" in q or "count" in q or "how many" in q):
+    limit = extract_int(q, [r"(?:below|under|less than|up to|beneath|smaller than|between\s+\d+\s+and)\s*(\d[\d,\s]*)"])
+    if limit and ("sum" in q or "count" in q or "how many" in q or "exist" in q):
         agg = "sum(primes)" if "sum" in q else "len(primes)"
         return _prog([
             "limit = {}".format(limit),

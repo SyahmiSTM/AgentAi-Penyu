@@ -77,8 +77,13 @@ DEFAULT_TILE_COST = 1
 DEFAULT_SPIKE_COST = 100
 
 # Challenge tiles that can optionally be routed over deliberately for points.
-# Off by default: a wrong answer costs a life, so opting in is a judgement call.
-CHALLENGE_TILES = {"c1", "c2", "c3", "c4", "c5", "c6", "c17", "c18"}
+# Split into FAST (instant answer, no sub-agent LLM call needed) and SLOW
+# (require sub-agent round-trip: ~8-12s each, risks timeout).
+# Only FAST challenges are detoured to by default. SLOW ones are only visited
+# if they happen to be ON the path (incidental), never as deliberate detours.
+FAST_CHALLENGE_TILES = {"c1", "c5", "c17", "c18"}
+SLOW_CHALLENGE_TILES = {"c2", "c3", "c4", "c6"}
+CHALLENGE_TILES = FAST_CHALLENGE_TILES | SLOW_CHALLENGE_TILES
 
 # Key/door tiles are cNN with two+ digits (c30 = door, c40 = key), which
 # distinguishes them from the single-digit challenge tiles c1-c8.
@@ -432,7 +437,7 @@ class _Optimiser:
                     self.door_by_cell[cell] = _pair_id(tile)
                 elif tile in COLLECTIBLE_COINS:
                     self.coins.append(cell)
-                elif include_challenges and tile in CHALLENGE_TILES:
+                elif include_challenges and tile in FAST_CHALLENGE_TILES:
                     self.challenges.append(cell)
 
         # A door with no matching key can never be opened legitimately.
