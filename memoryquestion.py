@@ -76,6 +76,9 @@ def lambda_handler(event, context):
             'answer': str(total),
             'breakdown': breakdown,
             'map_summary': dict(counts),
+            'dimensions': {'rows': len(game_map), 'cols': len(game_map[0]) if game_map else 0},
+            'total_cells': sum(len(row) for row in game_map),
+            'question_ids_found': seen,
         }
         print(f"RESULT: question={question!r} ids={seen} breakdown={breakdown} total={total}")
         return {'statusCode': 200, 'body': json.dumps(result)}
