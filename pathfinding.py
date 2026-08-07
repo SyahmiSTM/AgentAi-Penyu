@@ -184,7 +184,15 @@ def lambda_handler(event, context):
 
         strategy = _normalise_strategy(body.get('strategy', 'key_first'))
         spike_cost = _positive_int(body.get('spike_cost'), DEFAULT_SPIKE_COST)
-        include_challenges = bool(body.get('include_challenges', False))
+        include_challenges = body.get('include_challenges')
+        if include_challenges is None:
+            # Default: always include challenges for key_first/optimal strategy.
+            # Challenge tiles (c1-c6, c17, c18) are worth 250-600 points each,
+            # far more than the marginal token cost of visiting them. The optimizer
+            # treats them as optional POIs and skips any behind 2+ spikes.
+            include_challenges = strategy not in ('swift', 'get_coins')
+        else:
+            include_challenges = bool(include_challenges)
 
         treasure = _find_tile(game_map, rows, cols, 'treasure')
         if not treasure:
@@ -305,13 +313,14 @@ class _Router:
     key is held, so `held` (a frozenset of key ids) is part of the cache key.
     """
 
-    def __init__(self, board, rows, cols, spike_cost, door_cells, key_ids):
+    def __init__(self, board, rows, cols, spike_cost, door_cells, key_ids, treasure_cell=None):
         self.board = board
         self.rows = rows
         self.cols = cols
         self.spike_cost = spike_cost
         self.door_cells = door_cells          # {pair_id: cell}
         self.all_key_ids = frozenset(key_ids)
+        self.treasure_cell = treasure_cell    # blocked as pass-through (game ends on entry)
         # Bound the number of distinct key states we will compute fields for.
         self.simplify = len(key_ids) > MAX_EXACT_KEY_STATES
         self._cache = {}
@@ -323,20 +332,30 @@ class _Router:
         # Conservative collapse: doors open only once every key is held.
         return self.all_key_ids if frozenset(held) >= self.all_key_ids else frozenset()
 
-    def field(self, held, source):
-        key = (self._canonical(held), source)
+    def field(self, held, source, target=None):
+        """
+        Get the Dijkstra field from source. The treasure cell is blocked unless
+        target IS the treasure (the game ends when you step on treasure, so no
+        path to a non-treasure POI should pass through it).
+        """
+        block_treasure = (self.treasure_cell is not None
+                          and target != self.treasure_cell
+                          and source != self.treasure_cell)
+        key = (self._canonical(held), source, block_treasure)
         cached = self._cache.get(key)
         if cached is None:
-            cached = self._dijkstra(key[0], source)
+            cached = self._dijkstra(key[0], source, block_treasure)
             self._cache[key] = cached
         return cached
 
-    def _dijkstra(self, held, source):
+    def _dijkstra(self, held, source, block_treasure=False):
         self.dijkstra_runs += 1
         blocked = {
             cell for pair_id, cell in self.door_cells.items()
             if pair_id not in held
         }
+        if block_treasure and self.treasure_cell:
+            blocked.add(self.treasure_cell)
         blocked.discard(source)
 
         dist = {source: 0}
@@ -424,6 +443,7 @@ class _Optimiser:
         self.router = _Router(
             board, rows, cols, spike_cost,
             self.door_cells, set(self.key_cells.keys()),
+            treasure_cell=treasure,
         )
 
         self.required = set(self.key_cells.values()) | set(self.door_cells.values())
@@ -453,7 +473,7 @@ class _Optimiser:
             door_id = self.door_by_cell.get(target)
             if door_id is not None and door_id not in held:
                 return None  # would open a door without its key
-            field = self.router.field(held, cur)
+            field = self.router.field(held, cur, target=target)
             if target not in field.dist:
                 return None  # unreachable under current key state
             cost += field.dist[target]
@@ -483,7 +503,9 @@ class _Optimiser:
             pending_required.discard(self.start)
 
         while pending_required or pending_optional:
-            field = self.router.field(held, cur)
+            # Block treasure as pass-through: we're not heading there yet,
+            # and stepping on it ends the game immediately.
+            field = self.router.field(held, cur, target=None)
             best = None
             for cell in itertools.chain(pending_required, pending_optional):
                 if cell not in field.dist:
