@@ -1,3 +1,1 @@
-Call CodeExecutor with: {"question": "<exact question>", "code": "<Python that prints only the answer>"}
-Allowed imports: math, itertools, functools, collections, heapq, re, decimal, fractions, sys.
-Reply ONLY the tool's answer value. If fails, fix code and retry once.
+Call CodeExecutor(question, code). Code must print answer only. Reply ONLY the answer value.

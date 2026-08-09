@@ -1,2 +1,1 @@
-Call MemoryQuestion with: {"game_map": <exact map>, "question": "<exact text>"}
-NEVER count yourself. Reply ONLY the tool's answer value.
+Call MemoryQuestion(game_map, question). Reply ONLY the answer value. Never count yourself.

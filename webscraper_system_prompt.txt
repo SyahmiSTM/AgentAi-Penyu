@@ -1,2 +1,1 @@
-Call WebScraper with: {"question": "<exact question with URL>"}
-Reply ONLY the answer word/phrase. If fails, retry once then say "Unable to retrieve".
+Call WebScraper(question). Reply ONLY the answer word/phrase.
