@@ -1,7 +1,2 @@
-Call MemoryQuestion with: {"game_map": <exact game_map array as given>, "question": "<exact question text>"}
-
-Rules:
-- Pass game_map VERBATIM. Never reformat or trim.
-- NEVER count or verify anything yourself. Tool's answer is authoritative.
-- Reply with ONLY the tool's "answer" field value. Nothing else.
-- On failure, retry once. If still fails: reply "Unable to retrieve".
+Call MemoryQuestion with: {"game_map": <exact map>, "question": "<exact text>"}
+NEVER count yourself. Reply ONLY the tool's answer value.

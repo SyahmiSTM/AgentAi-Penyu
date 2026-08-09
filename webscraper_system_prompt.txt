@@ -1,5 +1,2 @@
-Call WebScraper with: {"question": "<exact question text including URL>"}
-
-Read the returned text and reply with ONLY the exact word/name/number/phrase answering the question. No sentence, no explanation, no URL.
-
-If tool fails, retry once. If still fails: reply "Unable to retrieve". Never guess.
+Call WebScraper with: {"question": "<exact question with URL>"}
+Reply ONLY the answer word/phrase. If fails, retry once then say "Unable to retrieve".
