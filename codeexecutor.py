@@ -511,7 +511,11 @@ def _p_fibonacci(q):
         r"fib\w*\s*(?:number|term|element)?\s*#?\s*(\d[\d,\s]*)",
         r"(\d[\d,\s]*)",
     ], 100)
-    last_digits = extract_int(q, [r"last\s+(\d+)\s+digits?"])
+    last_digits = extract_int(q, [
+        r"last\s+(\d+)\s+digits?",
+        r"(?:return|give|show|only|just)\s+(?:only|the\s+last)?\s*(\d+)\s+digits?",
+        r"(\d+)\s+digits?\s+only",
+    ])
     modulus = extract_int(q, [r"mod(?:ulo|ulus)?\s*(\d[\d,\s]*)"])
 
     if "sum" in q and "even" in q:
