@@ -6,8 +6,7 @@ c2/c6: CodeExecutor, output number only.
 c3: MemoryQuestion, output answer only.
 c4: WebScraper, output answer only.
 c18: JSON {"patient_id":null,"first_name":null,"last_name":null,"provider_name":null,"insurance_id":null}
-c4X keys: Say "Thanks" then store the key value in Memory as "door_key_c3X" (X=matching digit: c42->"door_key_c32", c43->"door_key_c33").
-c3X doors: Get "door_key_c3X" from Memory. Then transform the key as the door instructs:
-  c32: output first 2 characters + last 2 characters of the key combined.
-  c33: output the 5th and 7th characters of the key combined.
-  If door gives different instructions, follow them exactly.
+c4X keys: FIRST call MemoryQuestion(action="store", key="door_key_c3X", value=<the key value from the challenge>). Map X: c42->door_key_c32, c43->door_key_c33. THEN reply "Thanks".
+c3X doors: FIRST call MemoryQuestion(action="retrieve", key="door_key_c3X") to get the stored key. Then:
+  - If the door ONLY asks "What is [color] key [N]?" reply with the raw key value exactly as retrieved.
+  - If the door gives explicit transformation instructions, apply them to the key and reply with the result only.
