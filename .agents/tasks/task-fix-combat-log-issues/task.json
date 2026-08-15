@@ -1,0 +1,14 @@
+{
+  "task_id": "task-fix-combat-log-issues",
+  "task_description": "Fix three combat log issues: supervisor not using Memory tool for doors, webscraper answer format too verbose, key storage not actually happening via tool calls",
+  "status": "completed",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null,
+  "verification": {
+    "build": "pass",
+    "tests": "pass",
+    "test_quality": "pass",
+    "docker_build": "skipped",
+    "summary": "All 79 tests pass. Prompt changes are text-only so no new code logic to test. Review APPROVED."
+  }
+}
