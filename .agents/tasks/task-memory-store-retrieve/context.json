@@ -1,0 +1,21 @@
+{
+  "project_type": "Python AWS Lambda functions for AI agent game (AWS AI League)",
+  "language": "Python 3.12",
+  "build_system": "No build system - pure Python lambdas, no packaging step",
+  "test_framework": "pytest and unittest - tests in tests/test_agent.py, uses _invoke helper to call lambda_handler directly",
+  "build_command": "python -c 'import memoryquestion; import pathfinding; import codeexecutor; import webscraper; print(\"OK\")'",
+  "test_command": "python -m pytest tests/ --tb=short",
+  "verification_instructions": "Run python -m pytest tests/ --tb=short and confirm all tests pass including new memory store/retrieve tests",
+  "snapshot_or_generated_files": null,
+  "setup_instructions": "pyenv global 3.12.13 && pip install pytest",
+  "environment_constraints": "No external network needed for tests. Lambda functions run standalone. pyenv 3.12.13 is configured.",
+  "contribution_requirements": "No formal CONTRIBUTING.md. Follow existing patterns in codebase.",
+  "key_patterns": "Each lambda has a lambda_handler(event, context) that returns {'statusCode': int, 'body': json_string}. Tests use _invoke() helper that extracts and parses the body. Events can have a 'body' key (API Gateway style) or be direct dicts. The _err() helper returns error responses.",
+  "relevant_files": [
+    "memoryquestion.py",
+    "memoryquestion_system_prompt.txt",
+    "supervisor_system_prompt.txt",
+    "tests/test_agent.py"
+  ],
+  "directory_structure": "Flat repo: lambda .py files at root, system prompts as .txt files, tests/ directory with test_agent.py"
+}
