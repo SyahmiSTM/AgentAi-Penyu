@@ -1,0 +1,31 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Add store/retrieve key-value memory functionality to memoryquestion.py and update the system prompt. Keep existing map-counting logic intact.",
+  "status": "in_progress",
+  "steps": [
+    "In memoryquestion.py, add a module-level dictionary `_memory_store = {}` to hold key-value pairs during the Lambda's warm lifetime.",
+    "Modify lambda_handler to check for an 'action' field in the parsed body. Support three actions: 'count' (existing logic), 'store', and 'retrieve'.",
+    "For backward compatibility: if no 'action' is specified and 'game_map' + 'question' are both present, default to the existing count behavior.",
+    "Implement 'store' action: expects 'key' and 'value' fields in the body. Stores _memory_store[key] = value. Returns {'success': True, 'key': key, 'value': value}.",
+    "Implement 'retrieve' action: expects 'key' field in the body. Returns {'success': True, 'key': key, 'value': _memory_store.get(key)} if found, or {'success': False, 'key': key, 'error': 'Key not found: <key>'} if not found.",
+    "Update memoryquestion_system_prompt.txt to document all three capabilities: count (existing), store, and retrieve. Reference the action field and required parameters for each.",
+    "Add tests in tests/test_agent.py in a new test class (e.g. TestMemoryStoreRetrieve) that covers: (1) storing a key-value pair returns success, (2) retrieving a previously stored key returns the correct value, (3) retrieving a non-existent key returns an error, (4) store then retrieve round-trip for door_key_c32/door_key_c33 patterns, (5) backward compatibility - calling with game_map+question and no action still works as count, (6) store overwrites existing key.",
+    "Ensure all existing tests in TestMemoryQuestion still pass unchanged."
+  ],
+  "acceptance_criteria": [
+    "memoryquestion.lambda_handler with action='store', key='door_key_c33', value='PartyOnMyFriend' returns success response",
+    "memoryquestion.lambda_handler with action='retrieve', key='door_key_c33' returns the stored value 'PartyOnMyFriend'",
+    "memoryquestion.lambda_handler with action='retrieve', key='nonexistent' returns an error/not-found response",
+    "memoryquestion.lambda_handler with game_map and question (no action) still returns the count answer (backward compat)",
+    "All 68 existing tests still pass",
+    "New store/retrieve tests pass",
+    "memoryquestion_system_prompt.txt documents the store and retrieve actions"
+  ],
+  "verification": [
+    "Run: python -m pytest tests/ --tb=short - all tests pass including new ones",
+    "Run: python -c \"import memoryquestion; print(memoryquestion._memory_store)\" - confirms module-level dict exists"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

@@ -1,1 +1,22 @@
-Call MemoryQuestion(game_map, question). Reply ONLY the answer value. Never count yourself.
+MemoryQuestion is a multi-action tool with three capabilities:
+
+1. COUNT (map tile counting for c3 Memento challenges)
+   Call with: { "action": "count", "game_map": [[...]], "question": "how many c7?" }
+   Returns: { "answer": "4", "breakdown": {"c7": 4}, ... }
+   For backward compatibility, you may omit "action" if both "game_map" and "question" are provided.
+   Reply ONLY the answer value. Never count yourself.
+
+2. STORE (save a key-value pair in memory)
+   Call with: { "action": "store", "key": "<name>", "value": "<data>" }
+   Returns: { "success": true, "key": "<name>", "value": "<data>" }
+   Use this to remember door keys: e.g. store key="door_key_c33", value="PartyOnMyFriend"
+
+3. RETRIEVE (recall a previously stored value)
+   Call with: { "action": "retrieve", "key": "<name>" }
+   Returns: { "success": true, "key": "<name>", "value": "<data>" } if found
+   Returns: { "success": false, "key": "<name>", "error": "Key not found: <name>" } if not found
+   Use this to recall door keys when facing a locked door.
+
+Door key workflow:
+  - At c4X key challenges: store the key value as "door_key_c3X" (c42 -> door_key_c32, c43 -> door_key_c33)
+  - At c3X door challenges: retrieve "door_key_c3X" to get the stored key value

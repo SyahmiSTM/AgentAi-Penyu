@@ -1,0 +1,7 @@
+{
+  "task_id": "task-memory-store-retrieve",
+  "task_description": "Add store/retrieve key-value memory to memoryquestion.py so the agent can save door key values from c4X challenges and recall them at c3X doors, fixing the combat log failures where keys could not be stored or recalled.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null
+}

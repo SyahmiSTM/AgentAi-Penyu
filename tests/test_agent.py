@@ -677,6 +677,146 @@ class TestMemoryQuestion(unittest.TestCase):
 
 
 # ===========================================================================
+# MEMORY STORE/RETRIEVE TESTS
+# ===========================================================================
+class TestMemoryStoreRetrieve(unittest.TestCase):
+    """Store and retrieve key-value pairs via the memory tool."""
+
+    def setUp(self):
+        """Clear the memory store before each test to avoid cross-test contamination."""
+        memoryquestion._memory_store.clear()
+
+    def test_store_returns_success(self):
+        """Storing a key-value pair returns success with key and value echoed back."""
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "store",
+            "key": "door_key_c32",
+            "value": "AWSisAwesome",
+        })
+        self.assertTrue(result["success"])
+        self.assertEqual(result["key"], "door_key_c32")
+        self.assertEqual(result["value"], "AWSisAwesome")
+
+    def test_retrieve_existing_key(self):
+        """Retrieving a previously stored key returns the correct value."""
+        memoryquestion._memory_store["door_key_c33"] = "PartyOnMyFriend"
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "retrieve",
+            "key": "door_key_c33",
+        })
+        self.assertTrue(result["success"])
+        self.assertEqual(result["key"], "door_key_c33")
+        self.assertEqual(result["value"], "PartyOnMyFriend")
+
+    def test_retrieve_nonexistent_key(self):
+        """Retrieving a key that was never stored returns an error."""
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "retrieve",
+            "key": "nonexistent",
+        })
+        self.assertFalse(result["success"])
+        self.assertEqual(result["key"], "nonexistent")
+        self.assertIn("Key not found", result["error"])
+
+    def test_store_then_retrieve_round_trip_c32(self):
+        """Full round-trip: store door_key_c32 then retrieve it."""
+        _invoke(memoryquestion.lambda_handler, {
+            "action": "store",
+            "key": "door_key_c32",
+            "value": "AWSisAwesome",
+        })
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "retrieve",
+            "key": "door_key_c32",
+        })
+        self.assertTrue(result["success"])
+        self.assertEqual(result["value"], "AWSisAwesome")
+
+    def test_store_then_retrieve_round_trip_c33(self):
+        """Full round-trip: store door_key_c33 then retrieve it."""
+        _invoke(memoryquestion.lambda_handler, {
+            "action": "store",
+            "key": "door_key_c33",
+            "value": "PartyOnMyFriend",
+        })
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "retrieve",
+            "key": "door_key_c33",
+        })
+        self.assertTrue(result["success"])
+        self.assertEqual(result["value"], "PartyOnMyFriend")
+
+    def test_store_overwrites_existing_key(self):
+        """Storing the same key again overwrites the previous value."""
+        _invoke(memoryquestion.lambda_handler, {
+            "action": "store",
+            "key": "door_key_c32",
+            "value": "OldValue",
+        })
+        _invoke(memoryquestion.lambda_handler, {
+            "action": "store",
+            "key": "door_key_c32",
+            "value": "NewValue",
+        })
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "retrieve",
+            "key": "door_key_c32",
+        })
+        self.assertTrue(result["success"])
+        self.assertEqual(result["value"], "NewValue")
+
+    def test_backward_compat_count_without_action(self):
+        """Calling with game_map + question and no action still works as count."""
+        game_map = [
+            ["c7", "c7", "c7", "normal"],
+            ["c1", "c7", "normal", "treasure"],
+        ]
+        result = _invoke(memoryquestion.lambda_handler, {
+            "game_map": game_map,
+            "question": "How many c7 challenges are on the map?",
+        })
+        self.assertEqual(result["answer"], "4")
+        self.assertEqual(result["breakdown"]["c7"], 4)
+
+    def test_store_via_api_gateway_body(self):
+        """Store action works when event has API Gateway style 'body' key."""
+        import json as _json
+        event = {
+            "body": _json.dumps({
+                "action": "store",
+                "key": "test_key",
+                "value": "test_value",
+            })
+        }
+        result = _invoke(memoryquestion.lambda_handler, event)
+        self.assertTrue(result["success"])
+        self.assertEqual(result["value"], "test_value")
+
+    def test_missing_key_for_store_error(self):
+        """Store without a 'key' field returns an error."""
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "store",
+            "value": "some_value",
+        })
+        self.assertIn("error", result)
+
+    def test_missing_value_for_store_error(self):
+        """Store without a 'value' field returns an error."""
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "store",
+            "key": "some_key",
+        })
+        self.assertIn("error", result)
+
+    def test_missing_key_for_retrieve_error(self):
+        """Retrieve without a 'key' field returns an error."""
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "retrieve",
+        })
+        self.assertIn("error", result)
+
+
+# ===========================================================================
 # WEBSCRAPER TESTS (no network -- input parsing and error handling only)
 # ===========================================================================
 class TestWebscraperInputParsing(unittest.TestCase):
