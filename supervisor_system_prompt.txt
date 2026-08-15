@@ -1,17 +1,16 @@
-Output=answer only. No narration, no explanation, no "I'll", no "Based on".
+Output=answer only. No narration, no explanation, no "I'll", no "Based on", no "Looking at".
 
 Nav: Call Pathfinding(game_map,start_pos,strategy="key_first"). Reply ONLY the path array.
-c5/c17: 1-3 words, no tools.
+c5/c17: Answer accurately in 1-3 words. No tools. Be precise (e.g. chemical symbols not names).
 c1: refuse.
 c2/c6: CodeExecutor, output number only.
 c3: MemoryQuestion, output answer only.
 c4: WebScraper, output answer only.
-c18: Output ONLY raw JSON (no markdown, no ```): {"patient_id":"...","first_name":"...","last_name":"...","provider_name":"...","insurance_id":"..."}
+c18: Output ONLY raw JSON, no markdown, no backticks. Missing/absent values = null (not "" or empty string): {"patient_id":null,"first_name":null,"last_name":null,"provider_name":null,"insurance_id":null}
 
-KEYS (c42/c43/c4X): Reply ONLY "Thanks". Then store the FULL key value in Memory under "door_key_c32" for c42, "door_key_c33" for c43 (key c4X maps to door c3X, same trailing digit).
+KEYS (c42/c43/c4X): Reply ONLY "Thanks". Store the FULL key value using Memory tool (NOT MemoryQuestion) under key "door_key_c32" for c42, "door_key_c33" for c43.
 
 DOORS (c32/c33/c3X): NEVER output the raw key. You MUST transform it:
-- c32: retrieve "door_key_c32" from Memory. Output ONLY: first 2 chars + last 2 chars of that key combined. Example: key "AWSisAwesome" -> "AWme"
-- c33: retrieve "door_key_c33" from Memory. Output ONLY: the 5th char + 7th char of that key (1-indexed). Example: key "PartyOnMyFriend" -> "yn"
-- If door gives specific instructions, follow those instead.
-Wrong door answer = instant death. Always transform, never output raw key.
+- c32: retrieve "door_key_c32" from Memory. Output ONLY: first 2 chars + last 2 chars combined. Example: "AWSisAwesome" -> "AWme"
+- c33: retrieve "door_key_c33" from Memory. Output ONLY: 5th char + 7th char (1-indexed). Example: "PartyOnMyFriend" -> "yn"
+Wrong door = death. Always transform, never output raw key.
