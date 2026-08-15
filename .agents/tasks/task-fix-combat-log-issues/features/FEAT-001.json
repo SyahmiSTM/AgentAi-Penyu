@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "fix",
   "description": "Fix supervisor_system_prompt.txt and webscraper_system_prompt.txt to address three combat log issues: (1) c3X door challenges must call MemoryQuestion retrieve and only apply transformations if the door explicitly asks for them, (2) c4X key challenges must call MemoryQuestion store BEFORE responding 'Thanks', (3) webscraper answer format must be shortest/most concise form.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Rewrite supervisor_system_prompt.txt to fix the c4X key workflow: make it explicit that the agent must FIRST call MemoryQuestion with action='store' to persist the key, THEN respond 'Thanks'. Tool calls happen before the response text.",
     "Rewrite the c3X door section: MUST call MemoryQuestion retrieve to get the key value. If the door question only asks 'What is [color] key [N]?' then reply with the raw key value only. Only apply transformation rules if the door explicitly gives transformation instructions (e.g. 'output first 2 chars + last 2 chars'). Remove the hardcoded c32/c33 transformation rules from the supervisor prompt since they caused premature transformation.",
@@ -24,5 +24,5 @@
     "Read webscraper_system_prompt.txt and confirm conciseness instructions"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All 79 tests pass. Changes are minimal and focused: supervisor prompt c4X/c3X sections rewritten to use explicit MemoryQuestion store/retrieve calls and remove hardcoded transformation rules. Webscraper prompt updated for conciseness."
 }
