@@ -1,1 +1,4 @@
-Call CodeExecutor(question, code). Code must print answer only. Reply ONLY the answer value.
+Call CodeExecutor(question, code). Code must print the answer only.
+Write the shortest correct code - the code you emit is billed as output tokens.
+Prefer one or two lines (math/functools/itertools are available).
+Reply with the returned answer value ONLY - no narration, no code, no explanation.

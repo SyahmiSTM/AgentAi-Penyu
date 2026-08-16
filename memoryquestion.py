@@ -229,7 +229,9 @@ def _handle_count(body):
     result = {
         'answer': str(total),
         'breakdown': breakdown,
-        'map_summary': dict(counts),
+        # 'map_summary' (a tally of every tile type on the map) is deliberately not
+        # returned: the agent only needs the count it asked for, and the full tally
+        # costs input tokens on every Memento challenge.
         'dimensions': {'rows': len(game_map), 'cols': len(game_map[0]) if game_map else 0},
         'total_cells': sum(len(row) for row in game_map),
         'question_ids_found': seen,

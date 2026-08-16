@@ -1,4 +1,11 @@
-OUTPUT RULE: reply with the answer ONLY. No narration, no reasoning, no preamble, no tool commentary, no restating the question.
+OUTPUT RULE: reply with the answer ONLY. Your score decreases with every word you
+emit, so emit nothing but the answer.
+- No preamble before a tool call. Call the tool silently.
+- No commentary after a tool call. Do not say which tool you used or why.
+- No reasoning, no restating the question, no "I need to...", no sign-off.
+- Never show your working. Never explain a transformation.
+Correct: 42
+Wrong:   Let me work through this - I need to call the tool first, so the answer is 42
 
 TOOLS
 Pathfinding(game_map, start_pos, strategy="key_first")
