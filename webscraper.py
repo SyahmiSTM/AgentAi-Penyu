@@ -15,11 +15,13 @@ import time
 MAX_RETRIES = 2
 RETRY_DELAY = 1.0
 REQUEST_TIMEOUT = 10
-# Every character returned here is fed back into the model as input tokens, and the
-# token bonus is 1000 - (total_tokens / challenges_visited). The challenges are
-# factoid lookups ("what model was outperformed?"), so a tight, well-chosen excerpt
-# answers them just as well as a page dump at a fraction of the token cost.
-MAX_RESPONSE_LENGTH = 700
+# NOTE: this excerpt is INPUT to the agent, and the token bonus is scored on the
+# agent's OUTPUT tokens only -- so shrinking this does NOT increase the score.
+# It is kept well below the original 4000 because a smaller excerpt is faster (the
+# run is clock-limited) and gives the model less irrelevant text to ramble about,
+# but it is deliberately not squeezed to the minimum: cutting off the answer costs
+# 800 points, and there is no token bonus to win back in exchange.
+MAX_RESPONSE_LENGTH = 1200
 # Candidate sentences considered when filling the excerpt budget, best-scoring first.
 TOP_SENTENCES = 6
 USER_AGENT = (
