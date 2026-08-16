@@ -1073,3 +1073,80 @@ class TestWebscraperInputParsing(unittest.TestCase):
 # ===========================================================================
 if __name__ == "__main__":
     unittest.main()
+
+
+
+# ===========================================================================
+# WEBSCRAPER RELEVANCE TESTS (numeric-anchor precision)
+# ===========================================================================
+class TestWebscraperNumericAnchors(unittest.TestCase):
+    """
+    Guards the fix for a flaky web-search challenge that cost 1050 points a run.
+
+    The question "...outperformed by 20-50%?" was answered correctly in some runs and
+    wrongly in others with identical code. Cause: the keyword regex was [a-z]{2,},
+    which discarded every digit, so "20-50%" -- the one token that uniquely identifies
+    the answer sentence -- never influenced ranking. The page was then returned whole,
+    and a more familiar but wrong entity elsewhere on it competed for the model's
+    attention.
+    """
+
+    ANCHORED_Q = (
+        "According to https://example.com/forge/ for Acme Labs, through supervised "
+        "fine-tuning with Model X Lite, what model was outperformed by 20-50%?"
+    )
+    DISTRACTOR = "Many customers compare results against Rival 3.5 Ultra when evaluating a model."
+    ANSWER = "For Acme Labs, fine-tuning with Model X Lite outperformed Contender 4 by 20-50%."
+
+    def test_numeric_anchor_extracted_from_question(self):
+        """The digits in the question must reach the ranker at all."""
+        out = webscraper.extract_relevant_content(
+            " ".join([self.DISTRACTOR, self.ANSWER]), self.ANCHORED_Q
+        )
+        self.assertIn("Contender 4", out)
+
+    def test_anchor_isolates_answer_on_short_page(self):
+        """Page fits the budget: the answer is kept and the distractor dropped."""
+        page = " ".join(
+            ["Intro sentence about the platform.", self.DISTRACTOR]
+            + [f"Section {i} describes capabilities." for i in range(12)]
+            + [self.ANSWER]
+        )
+        out = webscraper.extract_relevant_content(page, self.ANCHORED_Q)
+        self.assertIn("Contender 4", out)
+        self.assertNotIn("Rival 3.5 Ultra", out)
+
+    def test_anchor_isolates_answer_on_long_page(self):
+        """Page exceeds the budget: same guarantee via the ranking path."""
+        page = " ".join(
+            [self.DISTRACTOR]
+            + [f"Long filler sentence {i} padding well past the budget." for i in range(120)]
+            + [self.ANSWER]
+        )
+        self.assertGreater(len(page), webscraper.MAX_RESPONSE_LENGTH)
+        out = webscraper.extract_relevant_content(page, self.ANCHORED_Q)
+        self.assertIn("Contender 4", out)
+        self.assertNotIn("Rival 3.5 Ultra", out)
+
+    def test_question_without_digits_returns_page_unchanged(self):
+        """
+        No numeric anchor means no behaviour change at all. Pins the known-good path
+        for the web question that already passes, so this fix cannot regress it.
+        """
+        q = "According to https://example.com/ what company gave officers freedom to experiment?"
+        page = " ".join(
+            [f"Filler {i} about the programme." for i in range(20)]
+            + ["Globex Industries gave officers the freedom to experiment with AI tools."]
+        )
+        out = webscraper.extract_relevant_content(page, q)
+        self.assertIn("Globex Industries", out)
+        self.assertEqual(out, page[:webscraper.MAX_RESPONSE_LENGTH])
+
+    def test_context_limits_not_silently_reduced(self):
+        """
+        Trimming what the scraper returns was tried and cost 1056 points. These are the
+        values from the configuration that scored 13787; failing here means someone has
+        starved the scraper again.
+        """
+        self.assertEqual(webscraper.MAX_RESPONSE_LENGTH, 4000)
+        self.assertEqual(webscraper.TOP_SENTENCES, 20)

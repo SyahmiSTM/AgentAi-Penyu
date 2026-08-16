@@ -15,15 +15,19 @@ import time
 MAX_RETRIES = 2
 RETRY_DELAY = 1.0
 REQUEST_TIMEOUT = 10
-# NOTE: this excerpt is INPUT to the agent, and the token bonus is scored on the
-# agent's OUTPUT tokens only -- so shrinking this does NOT increase the score.
-# It is kept well below the original 4000 because a smaller excerpt is faster (the
-# run is clock-limited) and gives the model less irrelevant text to ramble about,
-# but it is deliberately not squeezed to the minimum: cutting off the answer costs
-# 800 points, and there is no token bonus to win back in exchange.
-MAX_RESPONSE_LENGTH = 1200
+# DO NOT REDUCE THESE. Trimming what the scraper returns was tried and cost 1056
+# points (agent version 8: 12731 vs 13787). The excerpt is INPUT to the agent, and
+# the token bonus is scored on the agent's OUTPUT tokens only -- so shrinking it
+# buys nothing and risks cutting off the answer, which costs 800 points for the
+# challenge plus 250 for the life lost.
+MAX_RESPONSE_LENGTH = 4000
 # Candidate sentences considered when filling the excerpt budget, best-scoring first.
-TOP_SENTENCES = 6
+TOP_SENTENCES = 20
+# Weight for a numeric anchor match ("20-50%") vs an ordinary word match (3).
+NUMERIC_ANCHOR_WEIGHT = 12
+# When a numeric anchor pins the answer, return at most this many sentences, so a
+# familiar-but-wrong entity elsewhere on the page cannot compete for the model's attention.
+FOCUSED_SENTENCES = 3
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -255,8 +259,15 @@ def _decode_content(raw_bytes, charset=None):
 # ---------------------------------------------------------------------------
 def extract_relevant_content(full_text, question, max_length=MAX_RESPONSE_LENGTH):
     """Extract the most relevant portions of text based on the question."""
-    if not question or len(full_text) <= max_length:
+    if not question:
         return full_text[:max_length]
+
+    # Whether the whole page already fits. Previously this short-circuited straight to
+    # "return everything", which meant no relevance filtering ever ran for pages under
+    # the budget -- so a familiar-but-wrong entity elsewhere on the page reached the
+    # model alongside the real answer. The shortcut is now deferred: it still applies,
+    # but only after we have had a chance to pin the answer with a numeric anchor.
+    fits_in_budget = len(full_text) <= max_length
 
     # Extract meaningful keywords from the question (remove URLs and stop words)
     q_clean = re.sub(r'https?://[^\s]+', '', question).lower()
@@ -268,12 +279,30 @@ def extract_relevant_content(full_text, question, max_length=MAX_RESPONSE_LENGTH
         "might", "according", "about", "please", "tell", "me", "find",
         "give", "get", "show", "look", "up", "and", "or", "but", "not",
     ])
-    keywords = [
+    word_keywords = [
         w for w in re.findall(r'\b[a-z]{2,}\b', q_clean)
         if w not in stop_words
     ]
 
+    # Numeric anchors: percentages, ranges and version numbers ("20-50%", "2").
+    # The old pattern was [a-z]{2,}, which discarded every digit -- so the single
+    # most discriminative token in a factoid question was invisible to the ranker.
+    # Both the raw and percent-stripped forms are kept so "20-50%" matches "20-50".
+    numeric_anchors = []
+    for tok in re.findall(r'\d+(?:[-\u2013/.]\d+)*%?', q_clean):
+        for form in (tok, tok.rstrip('%')):
+            if form and form not in numeric_anchors:
+                numeric_anchors.append(form)
+
+    keywords = word_keywords + numeric_anchors
+
     if not keywords:
+        return full_text[:max_length]
+
+    # No numeric anchor to pin the answer with, and it all fits: return the page
+    # unchanged. This is the exact behaviour of the configuration that scored 13,787,
+    # preserved deliberately so questions without a numeric anchor cannot regress.
+    if fits_in_budget and not numeric_anchors:
         return full_text[:max_length]
 
     # Score sentences by keyword relevance
@@ -281,17 +310,19 @@ def extract_relevant_content(full_text, question, max_length=MAX_RESPONSE_LENGTH
     scored = []
     for i, sentence in enumerate(sentences):
         sentence_lower = sentence.lower()
-        score = sum(
-            3 if kw in sentence_lower else 0
-            for kw in keywords
-        )
+        score = sum(3 for kw in word_keywords if kw in sentence_lower)
+        # Numeric anchors are far more discriminative than ordinary words, so they
+        # are weighted much higher: many sentences say "model", only one says "20-50%".
+        score += sum(NUMERIC_ANCHOR_WEIGHT for kw in numeric_anchors if kw in sentence_lower)
         # Bonus for exact multi-word matches
-        for j in range(len(keywords) - 1):
-            bigram = f"{keywords[j]} {keywords[j+1]}"
+        for j in range(len(word_keywords) - 1):
+            bigram = f"{word_keywords[j]} {word_keywords[j+1]}"
             if bigram in sentence_lower:
                 score += 5
-        # Position bonus (content near the top is often more relevant)
-        position_bonus = max(0, 1.0 - (i / max(len(sentences), 1)) * 0.3)
+        # Mild position bonus. Kept small because the answer is often in a case study
+        # partway down the page, and a steep penalty there let generic early prose
+        # outrank the sentence that actually answers the question.
+        position_bonus = max(0, 1.0 - (i / max(len(sentences), 1)) * 0.05)
         score *= position_bonus
         if score > 0:
             scored.append((score, i, sentence))
@@ -301,6 +332,28 @@ def extract_relevant_content(full_text, question, max_length=MAX_RESPONSE_LENGTH
 
     # Sort by score descending, then by position for ties
     scored.sort(key=lambda x: (-x[0], x[1]))
+
+    # High-confidence shortcut. If the question carries a distinctive numeric anchor
+    # and some scoring sentence contains it, that sentence almost certainly holds the
+    # answer -- return a focused excerpt rather than a page dump. Returning the whole
+    # page is what caused the flaky answers: an unrelated but more familiar entity
+    # ("<vendor> <version>") elsewhere on the page would win the model's attention over
+    # the sentence that actually answers the question. Only sentences that already
+    # matched word keywords are eligible, since `scored` excludes zero-score sentences.
+    if numeric_anchors:
+        anchored = [
+            entry for entry in scored
+            if any(a in entry[2].lower() for a in numeric_anchors)
+        ]
+        if anchored:
+            focused = " ".join(s for _, _, s in anchored[:FOCUSED_SENTENCES])
+            if focused.strip():
+                return focused[:max_length]
+
+    # Numeric anchor found nothing usable. If the page fits, fall back to returning it
+    # whole rather than risking a worse excerpt than the known-good behaviour.
+    if fits_in_budget:
+        return full_text[:max_length]
 
     # Fill the budget in SCORE order, so the best-matching sentence can never be
     # crowded out by an earlier-positioned but weaker one -- then restore reading
@@ -384,16 +437,22 @@ def lambda_handler(event, context):
             )
 
         full_text = extractor.get_text()
+        title = extractor.title.strip()
+        headings = extractor.headings[:20]
 
         # Extract relevant content based on the question
         relevant_text = extract_relevant_content(full_text, question)
 
-        # Title and headings are deliberately NOT returned: they cost input tokens on
-        # every web challenge and the answer is always in the excerpt, not the nav
-        # structure. extractor.title/.headings remain available for debugging.
+        # Headings and title ARE returned. They were removed once on the assumption
+        # that the answer is always in the body prose -- that was wrong and cost 1056
+        # points. Page headings frequently contain the entity being asked about (e.g.
+        # a customer or product name), and they are input tokens, which the token
+        # bonus does not count.
         return _response(
             answer=relevant_text,
             url=final_url,
+            title=title,
+            headings=headings,
             content_type="html",
         )
 
@@ -417,10 +476,11 @@ def _parse_event(event):
     return event if isinstance(event, dict) else {}
 
 
-def _response(answer=None, error=None, url=None, content_type=None):
+def _response(answer=None, error=None, url=None, title=None, headings=None, content_type=None):
     """Build a standardized response.
 
-    Kept intentionally minimal: every field here becomes input tokens for the agent.
+    Include everything that might carry the answer. These are input tokens, which the
+    token bonus does not count, so there is no reason to withhold context from the agent.
     """
     body = {"success": error is None}
     if answer:
@@ -429,6 +489,10 @@ def _response(answer=None, error=None, url=None, content_type=None):
         body["error"] = error
     if url:
         body["url"] = url
+    if title:
+        body["title"] = title
+    if headings:
+        body["headings"] = headings
     if content_type:
         body["content_type"] = content_type
     return {
