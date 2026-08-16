@@ -1,0 +1,22 @@
+{
+  "project_type": "AWS AI League game agent - Lambda-based multi-agent system orchestrated by Amazon Bedrock AgentCore",
+  "language": "Python",
+  "build_system": "pytest for tests, no build step needed",
+  "test_framework": "pytest / unittest in tests/test_agent.py",
+  "build_command": null,
+  "test_command": "python -m pytest tests/",
+  "verification_instructions": "Run python -m pytest tests/ and confirm all tests pass",
+  "snapshot_or_generated_files": null,
+  "setup_instructions": "No special setup - pure Python with standard library",
+  "environment_constraints": "Has internet access. No Docker needed. Tests are self-contained with no network calls.",
+  "contribution_requirements": "Branch is fix/memory-store-retrieve, 1 commit ahead of main",
+  "key_patterns": "System prompts are plain text files (*_system_prompt.txt). Lambda handlers in *.py files. The supervisor prompt is extremely concise - every word matters for token efficiency. The game evaluates ONLY the final text response. Tool calls happen before the response text.",
+  "relevant_files": [
+    "supervisor_system_prompt.txt",
+    "webscraper_system_prompt.txt",
+    "memoryquestion_system_prompt.txt",
+    "memoryquestion.py",
+    "tests/test_agent.py"
+  ],
+  "directory_structure": "Flat structure: all Lambda handlers and system prompts at repo root. Tests in tests/ directory."
+}

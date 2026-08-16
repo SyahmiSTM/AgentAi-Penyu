@@ -1,0 +1,28 @@
+{
+  "id": "FEAT-001",
+  "type": "fix",
+  "description": "Fix supervisor_system_prompt.txt and webscraper_system_prompt.txt to address three combat log issues: (1) c3X door challenges must call MemoryQuestion retrieve and only apply transformations if the door explicitly asks for them, (2) c4X key challenges must call MemoryQuestion store BEFORE responding 'Thanks', (3) webscraper answer format must be shortest/most concise form.",
+  "status": "completed",
+  "steps": [
+    "Rewrite supervisor_system_prompt.txt to fix the c4X key workflow: make it explicit that the agent must FIRST call MemoryQuestion with action='store' to persist the key, THEN respond 'Thanks'. Tool calls happen before the response text.",
+    "Rewrite the c3X door section: MUST call MemoryQuestion retrieve to get the key value. If the door question only asks 'What is [color] key [N]?' then reply with the raw key value only. Only apply transformation rules if the door explicitly gives transformation instructions (e.g. 'output first 2 chars + last 2 chars'). Remove the hardcoded c32/c33 transformation rules from the supervisor prompt since they caused premature transformation.",
+    "Reinforce 'answer only, no narration' rule for ALL challenges in the supervisor prompt.",
+    "Update webscraper_system_prompt.txt to emphasize: reply with ONLY the shortest, most specific answer. No verbose names when a short form suffices (e.g. 'Sonnet 4' not 'Claude 3.5 Sonnet'). The answer must be the most concise recognizable form."
+  ],
+  "acceptance_criteria": [
+    "supervisor_system_prompt.txt explicitly instructs calling MemoryQuestion store (with action, key, value) for c4X challenges BEFORE responding",
+    "supervisor_system_prompt.txt instructs calling MemoryQuestion retrieve for c3X challenges",
+    "supervisor_system_prompt.txt does NOT hardcode specific transformation rules (c32/c33 rules removed) - instead instructs to follow the door's instructions if any, or return raw value if no transformation asked",
+    "supervisor_system_prompt.txt reinforces answer-only, no narration",
+    "webscraper_system_prompt.txt emphasizes shortest/most concise answer form",
+    "python -m pytest tests/ passes (no regressions)"
+  ],
+  "verification": [
+    "python -m pytest tests/ passes all existing tests",
+    "Read supervisor_system_prompt.txt and confirm it contains MemoryQuestion store instructions for c4X",
+    "Read supervisor_system_prompt.txt and confirm c3X section requires MemoryQuestion retrieve and conditional transformation",
+    "Read webscraper_system_prompt.txt and confirm conciseness instructions"
+  ],
+  "blocked_reason": null,
+  "findings": "All 79 tests pass. Changes are minimal and focused: supervisor prompt c4X/c3X sections rewritten to use explicit MemoryQuestion store/retrieve calls and remove hardcoded transformation rules. Webscraper prompt updated for conciseness."
+}
