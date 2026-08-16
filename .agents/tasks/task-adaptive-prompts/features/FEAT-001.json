@@ -24,5 +24,5 @@
     "Read webscraper_system_prompt.txt and confirm it does not contain 'Sonnet 4'"
   ],
   "blocked_reason": null,
-  "findings": "All 79 tests pass. Prompt files are text-only and have no automated test coverage. Also cleaned hardcoded example from memoryquestion_system_prompt.txt for consistency. pytest needed to be installed (not pre-installed in sandbox). Review feedback addressed: (1) guardrail text aligned to guardrails.txt, (2) challenge ID labels removed for kiosk mode adaptability, (3) insults added to topic list, (4) fallback instruction added for unrecognized challenges."
+  "findings": "All 79 tests pass. Prompt files are text-only and have no automated test coverage. Also cleaned hardcoded example from memoryquestion_system_prompt.txt for consistency. pytest needed to be installed (not pre-installed in sandbox). Review feedback addressed: (1) guardrail text aligned to guardrails.txt, (2) challenge ID labels removed for kiosk mode adaptability, (3) insults added to topic list, (4) fallback instruction added for unrecognized challenges. V2 review fixes: (1) key-to-door mapping changed from encounter order (first/second) to colour context (grey/yellow) to handle randomized kiosk mode, (2) added 'sexual content' to guardrail topic list, (3) replaced c4X/c3X challenge IDs in memoryquestion prompt with contextual grey/yellow key language."
 }
