@@ -9,7 +9,7 @@ MemoryQuestion is a multi-action tool with three capabilities:
 2. STORE (save a key-value pair in memory)
    Call with: { "action": "store", "key": "<name>", "value": "<data>" }
    Returns: { "success": true, "key": "<name>", "value": "<data>" }
-   Use this to remember door keys: e.g. store key="door_key_c33", value="PartyOnMyFriend"
+   Use this to remember door keys: e.g. store key="door_key_c33", value="<key value>"
 
 3. RETRIEVE (recall a previously stored value)
    Call with: { "action": "retrieve", "key": "<name>" }

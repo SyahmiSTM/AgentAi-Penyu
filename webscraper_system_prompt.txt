@@ -1,1 +1,1 @@
-Call WebScraper(question). Reply ONLY the shortest, most specific answer. Use the most concise recognizable form (e.g. "Sonnet 4" not "Claude 3.5 Sonnet"). No prefixes, no extra words.
+Call WebScraper(question). Reply ONLY the shortest, most specific answer extracted from the page. No prefixes, no extra words.
