@@ -15,7 +15,13 @@ import time
 MAX_RETRIES = 2
 RETRY_DELAY = 1.0
 REQUEST_TIMEOUT = 10
-MAX_RESPONSE_LENGTH = 4000
+# Every character returned here is fed back into the model as input tokens, and the
+# token bonus is 1000 - (total_tokens / challenges_visited). The challenges are
+# factoid lookups ("what model was outperformed?"), so a tight, well-chosen excerpt
+# answers them just as well as a page dump at a fraction of the token cost.
+MAX_RESPONSE_LENGTH = 700
+# Candidate sentences considered when filling the excerpt budget, best-scoring first.
+TOP_SENTENCES = 6
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -294,21 +300,25 @@ def extract_relevant_content(full_text, question, max_length=MAX_RESPONSE_LENGTH
     # Sort by score descending, then by position for ties
     scored.sort(key=lambda x: (-x[0], x[1]))
 
-    # Build response from highest-scoring sentences, preserving order
-    selected = sorted(scored[:20], key=lambda x: x[1])
-    result_parts = []
+    # Fill the budget in SCORE order, so the best-matching sentence can never be
+    # crowded out by an earlier-positioned but weaker one -- then restore reading
+    # order for the returned string. Uses `continue` rather than `break` so a single
+    # long sentence does not block shorter high-scoring ones behind it.
+    chosen = []
     current_length = 0
-
-    for _, _, sentence in selected:
+    for _, idx, sentence in scored[:TOP_SENTENCES]:
         if current_length + len(sentence) + 1 > max_length:
-            break
-        result_parts.append(sentence)
+            continue
+        chosen.append((idx, sentence))
         current_length += len(sentence) + 1
 
-    if not result_parts:
-        return full_text[:max_length]
+    if not chosen:
+        # Every candidate individually exceeds the budget: return the single
+        # best-scoring sentence truncated, rather than the top of the page.
+        return scored[0][2][:max_length]
 
-    return " ".join(result_parts)
+    chosen.sort(key=lambda x: x[0])
+    return " ".join(sentence for _, sentence in chosen)
 
 
 # ---------------------------------------------------------------------------
@@ -372,17 +382,16 @@ def lambda_handler(event, context):
             )
 
         full_text = extractor.get_text()
-        title = extractor.title.strip()
-        headings = extractor.headings[:20]
 
         # Extract relevant content based on the question
         relevant_text = extract_relevant_content(full_text, question)
 
+        # Title and headings are deliberately NOT returned: they cost input tokens on
+        # every web challenge and the answer is always in the excerpt, not the nav
+        # structure. extractor.title/.headings remain available for debugging.
         return _response(
             answer=relevant_text,
             url=final_url,
-            title=title,
-            headings=headings,
             content_type="html",
         )
 
@@ -406,8 +415,11 @@ def _parse_event(event):
     return event if isinstance(event, dict) else {}
 
 
-def _response(answer=None, error=None, url=None, title=None, headings=None, content_type=None):
-    """Build a standardized response."""
+def _response(answer=None, error=None, url=None, content_type=None):
+    """Build a standardized response.
+
+    Kept intentionally minimal: every field here becomes input tokens for the agent.
+    """
     body = {"success": error is None}
     if answer:
         body["answer"] = answer
@@ -415,10 +427,6 @@ def _response(answer=None, error=None, url=None, title=None, headings=None, cont
         body["error"] = error
     if url:
         body["url"] = url
-    if title:
-        body["title"] = title
-    if headings:
-        body["headings"] = headings
     if content_type:
         body["content_type"] = content_type
     return {
