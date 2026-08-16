@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "fix",
   "description": "Rewrite supervisor_system_prompt.txt and webscraper_system_prompt.txt to be adaptive and intelligent rather than rigidly scripted, enabling the agent to handle randomized kiosk mode maps/questions/keys.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Rewrite supervisor_system_prompt.txt with the following approach: (a) Teach the agent HOW to identify challenge types from context/name rather than using a lookup table. (b) For simple questions (c5/c17), instruct the agent to reason about the question and give the correct answer rather than a rigid '1-3 words' rule. (c) Make tool usage intelligent - explain WHEN to use each tool based on the nature of the challenge (computational=CodeExecutor, map counting=MemoryQuestion with count action, web URLs=WebScraper, navigation=Pathfinding). (d) Keep door/key logic as game mechanics: store key values with MemoryQuestion(action=store, key=door_key_c3X), retrieve at doors and transform (grey/c32: first 2 + last 2 chars; yellow/c33: 5th + 7th char, 1-indexed). (e) Remove hardcoded example values like 'AWSisAwesome' and 'PartyOnMyFriend' - use generic placeholder examples instead. (f) Keep guardrail topics listed: illegal activity, violence, hate, misconduct, edible flowers, transplanting, weeds, medical advice. (g) For c1 guardrail challenges, respond with 'Sorry, Penyu cannot answer this question.' (h) For c18 healthcare API, output JSON with the schema {patient_id, first_name, last_name, provider_name, insurance_id} using null for missing fields. (i) Keep the prompt concise/token-efficient while being more natural and adaptive. (j) STRICT rule: output only the final answer, no narration.",
     "Rewrite webscraper_system_prompt.txt to remove the hardcoded example 'Sonnet 4 not Claude 3.5 Sonnet'. Keep it concise - instruct the agent to call WebScraper with the question and return the shortest, most specific answer without extra words or prefixes.",
@@ -24,5 +24,5 @@
     "Read webscraper_system_prompt.txt and confirm it does not contain 'Sonnet 4'"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All 79 tests pass. Prompt files are text-only and have no automated test coverage. Also cleaned hardcoded example from memoryquestion_system_prompt.txt for consistency. pytest needed to be installed (not pre-installed in sandbox)."
 }
