@@ -1,4 +1,4 @@
-MemoryQuestion is a multi-action tool with three capabilities:
+MemoryQuestion is a multi-action tool with four capabilities:
 
 1. COUNT (map tile counting for c3 Memento challenges)
    Call with: { "action": "count", "game_map": [[...]], "question": "how many c7?" }
@@ -17,8 +17,25 @@ MemoryQuestion is a multi-action tool with three capabilities:
    Returns: { "success": false, "key": "<name>", "error": "Key not found: <name>" } if not found
    Use this to recall door keys when facing a locked door.
 
+4. TRANSFORM (recall a stored value AND apply a character transformation to it)
+   Call with: { "action": "transform", "key": "<name>", "rule": "<rule>" }
+   Returns: { "success": true, "key": "<name>", "rule": "<rule>", "answer": "<result>" } if found
+   Returns: { "success": false, "key": "<name>", "error": "Key not found: <name>" } if not found
+   Supported rules:
+     "first2last2" -> first 2 characters + last 2 characters   (e.g. "ABCDEF" -> "ABEF")
+     "char5char7"  -> 5th character + 7th character, 1-indexed (e.g. "ABCDEFGH" -> "EG")
+   Reply ONLY the "answer" value. Never count or slice characters yourself.
+
 Door key workflow:
   - When given a key to remember, identify the door it belongs to from the challenge context:
     Grey key -> store as "door_key_c32"
     Yellow key -> store as "door_key_c33"
-  - At door challenges: retrieve the matching door key ("door_key_c32" for grey door, "door_key_c33" for yellow door)
+  - At door challenges, use TRANSFORM (not RETRIEVE) so the tool computes the answer:
+    Grey door   -> { "action": "transform", "key": "door_key_c32", "rule": "first2last2" }
+    Yellow door -> { "action": "transform", "key": "door_key_c33", "rule": "char5char7" }
+  - Reply ONLY the returned "answer" value, nothing else.
+
+CRITICAL: Never count character positions, index into, or slice a key value yourself,
+and never re-check or "correct" the tool's answer. Character counting is error-prone --
+the transform action does it deterministically. Always trust and output the "answer" field.
+If a transform returns success: false, the key was never stored; do not invent an answer.

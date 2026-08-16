@@ -817,6 +817,210 @@ class TestMemoryStoreRetrieve(unittest.TestCase):
 
 
 # ===========================================================================
+# MEMORY TRANSFORM TESTS (door unlock character arithmetic)
+# ===========================================================================
+class TestMemoryTransform(unittest.TestCase):
+    """
+    Deterministic key transformations for door unlocks.
+
+    The agent must never do character-position arithmetic itself, so these tests pin
+    the exact expected output of each rule -- including the 1-indexed off-by-one that
+    previously killed the run at the yellow door.
+    """
+
+    def setUp(self):
+        """Clear the memory store before each test to avoid cross-test contamination."""
+        memoryquestion._memory_store.clear()
+
+    def test_transform_char5char7_yellow_door(self):
+        """char5char7 is 1-indexed: 'PartyOnMyFriend' -> 'yn' (not the 0-indexed 'OM')."""
+        _invoke(memoryquestion.lambda_handler, {
+            "action": "store",
+            "key": "door_key_c33",
+            "value": "PartyOnMyFriend",
+        })
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "transform",
+            "key": "door_key_c33",
+            "rule": "char5char7",
+        })
+        self.assertTrue(result["success"])
+        self.assertEqual(result["answer"], "yn")
+        self.assertEqual(result["key"], "door_key_c33")
+        self.assertEqual(result["rule"], "char5char7")
+
+    def test_transform_char5char7_is_not_zero_indexed(self):
+        """Regression guard: the 0-indexed answer 'OM' must never be returned."""
+        _invoke(memoryquestion.lambda_handler, {
+            "action": "store",
+            "key": "door_key_c33",
+            "value": "PartyOnMyFriend",
+        })
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "transform",
+            "key": "door_key_c33",
+            "rule": "char5char7",
+        })
+        self.assertNotEqual(result["answer"], "OM")
+
+    def test_transform_first2last2_grey_door(self):
+        """first2last2 on 'AWSisAwesome' -> 'AWme'."""
+        _invoke(memoryquestion.lambda_handler, {
+            "action": "store",
+            "key": "door_key_c32",
+            "value": "AWSisAwesome",
+        })
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "transform",
+            "key": "door_key_c32",
+            "rule": "first2last2",
+        })
+        self.assertTrue(result["success"])
+        self.assertEqual(result["answer"], "AWme")
+        self.assertEqual(result["key"], "door_key_c32")
+        self.assertEqual(result["rule"], "first2last2")
+
+    def test_transform_generic_placeholder_values(self):
+        """Both rules match their documented placeholder examples."""
+        memoryquestion._memory_store["k1"] = "ABCDEFGH"
+        memoryquestion._memory_store["k2"] = "ABCDEF"
+        c5c7 = _invoke(memoryquestion.lambda_handler, {
+            "action": "transform", "key": "k1", "rule": "char5char7",
+        })
+        f2l2 = _invoke(memoryquestion.lambda_handler, {
+            "action": "transform", "key": "k2", "rule": "first2last2",
+        })
+        self.assertEqual(c5c7["answer"], "EG")
+        self.assertEqual(f2l2["answer"], "ABEF")
+
+    def test_transform_nonexistent_key_reports_not_found(self):
+        """Transforming a key that was never stored reports not-found, not a crash."""
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "transform",
+            "key": "door_key_c33",
+            "rule": "char5char7",
+        })
+        self.assertFalse(result["success"])
+        self.assertEqual(result["key"], "door_key_c33")
+        self.assertIn("Key not found", result["error"])
+        self.assertNotIn("answer", result)
+
+    def test_transform_missing_rule_error(self):
+        """Transform without a 'rule' field returns an error listing supported rules."""
+        memoryquestion._memory_store["door_key_c33"] = "PartyOnMyFriend"
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "transform",
+            "key": "door_key_c33",
+        })
+        self.assertIn("error", result)
+        self.assertIn("first2last2", result["error"])
+        self.assertIn("char5char7", result["error"])
+
+    def test_transform_unknown_rule_error(self):
+        """Transform with an unrecognized rule returns an error listing supported rules."""
+        memoryquestion._memory_store["door_key_c33"] = "PartyOnMyFriend"
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "transform",
+            "key": "door_key_c33",
+            "rule": "char3char9",
+        })
+        self.assertIn("error", result)
+        self.assertIn("first2last2", result["error"])
+        self.assertIn("char5char7", result["error"])
+
+    def test_transform_missing_key_field_error(self):
+        """Transform without a 'key' field returns an error."""
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "transform",
+            "rule": "char5char7",
+        })
+        self.assertIn("error", result)
+
+    def test_transform_value_too_short_for_char5char7(self):
+        """A value shorter than 7 chars errors instead of producing a wrong answer."""
+        memoryquestion._memory_store["short_key"] = "ABCDEF"
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "transform",
+            "key": "short_key",
+            "rule": "char5char7",
+        })
+        self.assertIn("error", result)
+        self.assertIn("too short", result["error"])
+        self.assertNotIn("answer", result)
+
+    def test_transform_value_too_short_for_first2last2(self):
+        """A value shorter than 4 chars errors instead of returning a truncated answer."""
+        memoryquestion._memory_store["short_key"] = "ABC"
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "transform",
+            "key": "short_key",
+            "rule": "first2last2",
+        })
+        self.assertIn("error", result)
+        self.assertIn("too short", result["error"])
+        self.assertNotIn("answer", result)
+
+    def test_transform_exact_minimum_lengths_succeed(self):
+        """Boundary check: values at exactly the minimum length transform fine."""
+        memoryquestion._memory_store["k7"] = "ABCDEFG"
+        memoryquestion._memory_store["k4"] = "ABCD"
+        c5c7 = _invoke(memoryquestion.lambda_handler, {
+            "action": "transform", "key": "k7", "rule": "char5char7",
+        })
+        f2l2 = _invoke(memoryquestion.lambda_handler, {
+            "action": "transform", "key": "k4", "rule": "first2last2",
+        })
+        self.assertEqual(c5c7["answer"], "EG")
+        self.assertEqual(f2l2["answer"], "ABCD")
+
+    def test_transform_success_does_not_leak_raw_value(self):
+        """The success response must not include the raw stored key value."""
+        raw = "PartyOnMyFriend"
+        _invoke(memoryquestion.lambda_handler, {
+            "action": "store",
+            "key": "door_key_c33",
+            "value": raw,
+        })
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "transform",
+            "key": "door_key_c33",
+            "rule": "char5char7",
+        })
+        self.assertTrue(result["success"])
+        self.assertNotIn("value", result)
+        self.assertNotIn(raw, json.dumps(result))
+
+    def test_transform_does_not_consume_stored_key(self):
+        """Transforming leaves the stored value in place for repeat attempts."""
+        _invoke(memoryquestion.lambda_handler, {
+            "action": "store",
+            "key": "door_key_c33",
+            "value": "PartyOnMyFriend",
+        })
+        first = _invoke(memoryquestion.lambda_handler, {
+            "action": "transform", "key": "door_key_c33", "rule": "char5char7",
+        })
+        second = _invoke(memoryquestion.lambda_handler, {
+            "action": "transform", "key": "door_key_c33", "rule": "char5char7",
+        })
+        self.assertEqual(first["answer"], "yn")
+        self.assertEqual(second["answer"], "yn")
+
+    def test_transform_via_api_gateway_body(self):
+        """Transform works when the event has an API Gateway style 'body' key."""
+        memoryquestion._memory_store["door_key_c33"] = "PartyOnMyFriend"
+        result = _invoke(memoryquestion.lambda_handler, {
+            "body": json.dumps({
+                "action": "transform",
+                "key": "door_key_c33",
+                "rule": "char5char7",
+            })
+        })
+        self.assertTrue(result["success"])
+        self.assertEqual(result["answer"], "yn")
+
+
+# ===========================================================================
 # WEBSCRAPER TESTS (no network -- input parsing and error handling only)
 # ===========================================================================
 class TestWebscraperInputParsing(unittest.TestCase):
