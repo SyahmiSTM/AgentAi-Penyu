@@ -1,0 +1,24 @@
+{
+  "project_type": "AWS AI League competition agent - Lambda-based tools with system prompts",
+  "language": "Python",
+  "build_system": "pytest for tests, no formal build step",
+  "test_framework": "pytest / unittest - tests/test_agent.py covers all Lambda handlers",
+  "build_command": "python -m pytest tests/ -v",
+  "test_command": "python -m pytest tests/ -v",
+  "verification_instructions": "Run python -m pytest tests/ -v and confirm all tests pass. The prompts are text files that don't have automated tests - they are evaluated in the live competition.",
+  "snapshot_or_generated_files": null,
+  "setup_instructions": "No setup needed - pure Python with no external dependencies",
+  "environment_constraints": "Has internet access. The prompt files are plain text, no compilation needed.",
+  "contribution_requirements": "Do not hardcode answers for kiosk mode. Keep prompts token-efficient. Door transformation rules are game mechanics, not hardcoded answers.",
+  "key_patterns": "System prompts are plain .txt files. Each tool has a Lambda handler (.py) and a system prompt. The supervisor orchestrates challenge routing. Token efficiency matters for scoring.",
+  "relevant_files": [
+    "supervisor_system_prompt.txt",
+    "webscraper_system_prompt.txt",
+    "guardrails.txt",
+    "memoryquestion_system_prompt.txt",
+    "codeexecutor_system_prompt.txt",
+    "pathfinding_system_prompt.txt",
+    "CHANGELOG.md"
+  ],
+  "directory_structure": "Flat structure: .py Lambda handlers + .txt system prompts + tests/ directory"
+}

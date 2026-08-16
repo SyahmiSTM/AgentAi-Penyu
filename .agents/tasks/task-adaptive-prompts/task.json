@@ -1,0 +1,7 @@
+{
+  "task_id": "task-adaptive-prompts",
+  "task_description": "Rewrite supervisor and webscraper system prompts to be adaptive and intelligent for kiosk mode rather than rigidly scripted with hardcoded values",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null
+}
