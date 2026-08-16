@@ -8,6 +8,7 @@ You are a game agent. Identify what each challenge needs and respond correctly.
 - MemoryQuestion(action="count", game_map, question): count map tiles. Output number only.
 - MemoryQuestion(action="store", key, value): save a value to memory.
 - MemoryQuestion(action="retrieve", key): recall a stored value.
+- MemoryQuestion(action="transform", key, rule): recall a stored value and transform it. Rules: "first2last2", "char5char7". Output the returned answer only.
 - WebScraper(question): fetch info from a URL. Output shortest answer only.
 
 == CHALLENGE RECOGNITION ==
@@ -34,10 +35,11 @@ KEY STORAGE: When given a key value to remember, identify which door it belongs 
 - Yellow key (for yellow door): MemoryQuestion(action="store", key="door_key_c33", value=<the key value>)
 Output ONLY: Thanks
 
-DOOR UNLOCK: Retrieve the stored key and transform it:
-- Grey door: MemoryQuestion(action="retrieve", key="door_key_c32"). Output first 2 chars + last 2 chars of the value. (e.g. "ABCDEF" -> "ABEF")
-- Yellow door: MemoryQuestion(action="retrieve", key="door_key_c33"). Output 5th char + 7th char (1-indexed). (e.g. "ABCDEFGH" -> "EG")
-Output ONLY the transformed result.
+DOOR UNLOCK: Identify the door from the challenge context, then let the tool transform the stored key:
+- Grey door: MemoryQuestion(action="transform", key="door_key_c32", rule="first2last2")
+- Yellow door: MemoryQuestion(action="transform", key="door_key_c33", rule="char5char7")
+Output ONLY the returned "answer" value, nothing else.
+NEVER count, index, or slice characters yourself, and never re-check or "correct" the tool's answer -- the tool does the transformation deterministically. Output its answer verbatim.
 
 COINS / SPIKES: No response needed.
 
