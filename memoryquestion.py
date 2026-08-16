@@ -52,15 +52,15 @@ def lambda_handler(event, context):
 
     -- store --
     Input:
-      { "action": "store", "key": "door_key_c33", "value": "PartyOnMyFriend" }
+      { "action": "store", "key": "door_key_c33", "value": "<key value>" }
     Output:
-      { "success": true, "key": "door_key_c33", "value": "PartyOnMyFriend" }
+      { "success": true, "key": "door_key_c33", "value": "<key value>" }
 
     -- retrieve --
     Input:
       { "action": "retrieve", "key": "door_key_c33" }
     Output (found):
-      { "success": true, "key": "door_key_c33", "value": "PartyOnMyFriend" }
+      { "success": true, "key": "door_key_c33", "value": "<key value>" }
     Output (not found):
       { "success": false, "key": "door_key_c33", "error": "Key not found: door_key_c33" }
 
