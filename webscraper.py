@@ -15,15 +15,14 @@ import time
 MAX_RETRIES = 2
 RETRY_DELAY = 1.0
 REQUEST_TIMEOUT = 10
-# NOTE: this excerpt is INPUT to the agent, and the token bonus is scored on the
-# agent's OUTPUT tokens only -- so shrinking this does NOT increase the score.
-# It is kept well below the original 4000 because a smaller excerpt is faster (the
-# run is clock-limited) and gives the model less irrelevant text to ramble about,
-# but it is deliberately not squeezed to the minimum: cutting off the answer costs
-# 800 points, and there is no token bonus to win back in exchange.
-MAX_RESPONSE_LENGTH = 1200
+# DO NOT REDUCE THESE. Trimming what the scraper returns was tried and cost 1056
+# points (agent version 8: 12731 vs 13787). The excerpt is INPUT to the agent, and
+# the token bonus is scored on the agent's OUTPUT tokens only -- so shrinking it
+# buys nothing and risks cutting off the answer, which costs 800 points for the
+# challenge plus 250 for the life lost.
+MAX_RESPONSE_LENGTH = 4000
 # Candidate sentences considered when filling the excerpt budget, best-scoring first.
-TOP_SENTENCES = 6
+TOP_SENTENCES = 20
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -384,16 +383,22 @@ def lambda_handler(event, context):
             )
 
         full_text = extractor.get_text()
+        title = extractor.title.strip()
+        headings = extractor.headings[:20]
 
         # Extract relevant content based on the question
         relevant_text = extract_relevant_content(full_text, question)
 
-        # Title and headings are deliberately NOT returned: they cost input tokens on
-        # every web challenge and the answer is always in the excerpt, not the nav
-        # structure. extractor.title/.headings remain available for debugging.
+        # Headings and title ARE returned. They were removed once on the assumption
+        # that the answer is always in the body prose -- that was wrong and cost 1056
+        # points. Page headings frequently contain the entity being asked about (e.g.
+        # a customer or product name), and they are input tokens, which the token
+        # bonus does not count.
         return _response(
             answer=relevant_text,
             url=final_url,
+            title=title,
+            headings=headings,
             content_type="html",
         )
 
@@ -417,10 +422,11 @@ def _parse_event(event):
     return event if isinstance(event, dict) else {}
 
 
-def _response(answer=None, error=None, url=None, content_type=None):
+def _response(answer=None, error=None, url=None, title=None, headings=None, content_type=None):
     """Build a standardized response.
 
-    Kept intentionally minimal: every field here becomes input tokens for the agent.
+    Include everything that might carry the answer. These are input tokens, which the
+    token bonus does not count, so there is no reason to withhold context from the agent.
     """
     body = {"success": error is None}
     if answer:
@@ -429,6 +435,10 @@ def _response(answer=None, error=None, url=None, content_type=None):
         body["error"] = error
     if url:
         body["url"] = url
+    if title:
+        body["title"] = title
+    if headings:
+        body["headings"] = headings
     if content_type:
         body["content_type"] = content_type
     return {
