@@ -18,5 +18,7 @@ MemoryQuestion is a multi-action tool with three capabilities:
    Use this to recall door keys when facing a locked door.
 
 Door key workflow:
-  - At c4X key challenges: store the key value as "door_key_c3X" (c42 -> door_key_c32, c43 -> door_key_c33)
-  - At c3X door challenges: retrieve "door_key_c3X" to get the stored key value
+  - When given a key to remember, identify the door it belongs to from the challenge context:
+    Grey key -> store as "door_key_c32"
+    Yellow key -> store as "door_key_c33"
+  - At door challenges: retrieve the matching door key ("door_key_c32" for grey door, "door_key_c33" for yellow door)
