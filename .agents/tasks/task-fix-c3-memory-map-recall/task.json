@@ -1,0 +1,7 @@
+{
+  "task_id": "task-fix-c3-memory-map-recall",
+  "task_description": "Fix the c3 Memory Trial challenge: the agent loops (~9 calls) and fails when it hits the c3 tile because the map-counting question omits the game map (the map is only presented once at game start for pathfinding). Remember the map when first seen and recall it at c3 via memoryquestion, so the agent answers map-counting questions (including multi-type addition like c1 + c8) with a single correct call instead of looping.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null
+}

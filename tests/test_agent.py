@@ -679,6 +679,136 @@ class TestMemoryQuestion(unittest.TestCase):
 # ===========================================================================
 # MEMORY STORE/RETRIEVE TESTS
 # ===========================================================================
+# MEMORY MAP RECALL TESTS (c3 Memory Trial fix)
+# ===========================================================================
+class TestMemoryMapRecall(unittest.TestCase):
+    """count recalls the map remembered at game start (c3 Memory Trial fix)."""
+
+    def setUp(self):
+        """Clear the memory store before each test to avoid cross-test contamination."""
+        memoryquestion._memory_store.clear()
+
+    def tearDown(self):
+        """Clear again so a remembered map does not leak into other test classes."""
+        memoryquestion._memory_store.clear()
+
+    def test_count_recalls_remembered_map_from_store_map(self):
+        """A map stored via store_map is recalled by a later count that omits it."""
+        game_map = [
+            ["c4", "c4", "normal", "c4"],
+            ["c1", "normal", "c4", "treasure"],
+        ]
+        _invoke(memoryquestion.lambda_handler, {
+            "action": "store_map",
+            "game_map": game_map,
+        })
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "count",
+            "question": "How many c4 challenges are on the map?",
+        })
+        self.assertNotIn("error", result)
+        self.assertEqual(result["answer"], "4")
+        self.assertEqual(result["breakdown"]["c4"], 4)
+
+    def test_count_recalls_map_from_prior_count_call(self):
+        """A map carried by an earlier count call is remembered for a later mapless count."""
+        game_map = [
+            ["c7", "c7", "normal"],
+            ["c7", "normal", "treasure"],
+        ]
+        _invoke(memoryquestion.lambda_handler, {
+            "action": "count",
+            "game_map": game_map,
+            "question": "How many c7?",
+        })
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "count",
+            "question": "How many c7?",
+        })
+        self.assertNotIn("error", result)
+        self.assertEqual(result["answer"], "3")
+
+    def test_count_no_map_ever_returns_clean_error(self):
+        """With no map passed and none remembered, count returns a clean error (no crash)."""
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "count",
+            "question": "How many c1?",
+        })
+        self.assertIn("error", result)
+
+    def test_store_map_returns_dimensions_without_echoing_map(self):
+        """store_map returns success + dimensions and does NOT echo the full map."""
+        game_map = [
+            ["start", "c4", "normal"],
+            ["c4", "normal", "treasure"],
+        ]
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "store_map",
+            "game_map": game_map,
+        })
+        self.assertTrue(result["success"])
+        self.assertEqual(result["rows"], 2)
+        self.assertEqual(result["cols"], 3)
+        self.assertEqual(result["total_cells"], 6)
+        self.assertNotIn("game_map", result)
+
+    def test_store_map_missing_map_returns_error(self):
+        """store_map with an empty map returns a clean 400-style error."""
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "store_map",
+            "game_map": [],
+        })
+        self.assertIn("error", result)
+
+    def test_multi_type_addition_when_map_remembered(self):
+        """Adding multiple challenge types (c1 + c8) works against the recalled map."""
+        game_map = [
+            ["c1", "c8", "c1", "normal"],
+            ["c8", "c8", "normal", "treasure"],
+        ]
+        _invoke(memoryquestion.lambda_handler, {
+            "action": "store_map",
+            "game_map": game_map,
+        })
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "count",
+            "question": "How many c1 + c8?",
+        })
+        # c1=2, c8=3, total=5
+        self.assertEqual(result["answer"], "5")
+        self.assertEqual(result["breakdown"]["c1"], 2)
+        self.assertEqual(result["breakdown"]["c8"], 3)
+
+    def test_passed_map_takes_precedence_and_updates_remembered(self):
+        """A passed map wins over the remembered one, and becomes the new remembered map."""
+        remembered = [
+            ["c4", "c4", "normal"],
+            ["normal", "normal", "treasure"],
+        ]
+        _invoke(memoryquestion.lambda_handler, {
+            "action": "store_map",
+            "game_map": remembered,
+        })
+        passed = [
+            ["c4", "c4", "c4"],
+            ["c4", "normal", "treasure"],
+        ]
+        # Passed map (4x c4) must win over remembered map (2x c4).
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "count",
+            "game_map": passed,
+            "question": "How many c4?",
+        })
+        self.assertEqual(result["answer"], "4")
+        # Auto-persist updated the remembered map: a subsequent mapless count sees 4.
+        result2 = _invoke(memoryquestion.lambda_handler, {
+            "action": "count",
+            "question": "How many c4?",
+        })
+        self.assertEqual(result2["answer"], "4")
+
+
+# ===========================================================================
 class TestMemoryStoreRetrieve(unittest.TestCase):
     """Store and retrieve key-value pairs via the memory tool."""
 

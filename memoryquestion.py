@@ -9,6 +9,23 @@ ID_PATTERN = re.compile(r'\bc(\d+)\b', re.IGNORECASE)
 # Persists across invocations while the Lambda container stays warm (i.e. during a game session).
 _memory_store = {}
 
+# Well-known key under which the game map is remembered for the whole session.
+# The map is only presented once (at game start, for Pathfinding); the c3 (Memento)
+# challenge later asks a counting question WITHOUT re-including the map. We remember
+# the map the first time any call carries one so count can recall it later.
+GAME_MAP_KEY = 'game_map'
+
+
+def _remember_map(game_map):
+    """Store a copy of a non-empty list-of-lists game_map for later recall."""
+    if isinstance(game_map, list) and game_map:
+        _memory_store[GAME_MAP_KEY] = [list(row) for row in game_map]
+
+
+def _recall_map():
+    """Return the remembered game_map (or None if none has been seen this session)."""
+    return _memory_store.get(GAME_MAP_KEY)
+
 # Deterministic transformations applied to stored values at door challenges.
 # The Lambda does the character arithmetic so the agent never has to count or slice
 # characters itself (LLMs are unreliable at character-position arithmetic).
@@ -55,8 +72,11 @@ def lambda_handler(event, context):
       - "retrieve"  : Retrieve a previously stored value by key.
       - "transform" : Retrieve a stored value and apply a deterministic character
                       transformation to it (door unlock answers).
+      - "store_map" : Remember the game map at game start so count can recall it later.
 
     Action routing:
+      - Any call that carries a non-empty 'game_map' auto-persists it (so it can be
+        recalled by a later count that omits the map).
       - If 'action' field is present, dispatch to that action.
       - If no 'action' but 'game_map' and 'question' are present, default to 'count' (backward compat).
 
@@ -103,6 +123,13 @@ def lambda_handler(event, context):
 
         print(f"DEBUG: Received event: {body}")
 
+        # Auto-persist any incoming map BEFORE dispatch. Any call that carries a
+        # non-empty game_map (count, store_map, etc.) updates the remembered map,
+        # so a later count that omits the map can still recall it.
+        incoming_map = body.get('game_map')
+        if isinstance(incoming_map, list) and incoming_map:
+            _remember_map(incoming_map)
+
         # Determine action
         action = body.get('action')
 
@@ -121,8 +148,10 @@ def lambda_handler(event, context):
             return _handle_transform(body)
         elif action == 'count':
             return _handle_count(body)
+        elif action == 'store_map':
+            return _handle_store_map(body)
         else:
-            return _err(400, f"Unknown action: {action!r}. Supported: count, store, retrieve, transform")
+            return _err(400, f"Unknown action: {action!r}. Supported: count, store, retrieve, transform, store_map")
 
     except Exception as e:
         print(f"ERROR: {e}")
@@ -213,10 +242,36 @@ def _handle_transform(body):
     return {'statusCode': 200, 'body': json.dumps(result)}
 
 
+def _handle_store_map(body):
+    """
+    Explicitly remember the game map at game start so c3 count questions can recall
+    it later. The full map is deliberately NOT echoed back (it would waste tokens on
+    every game); only the dimensions are returned as a lightweight confirmation.
+    """
+    game_map = body.get('game_map')
+
+    if not isinstance(game_map, list) or not game_map:
+        return _err(400, "Missing 'game_map' for store_map action (expected a non-empty list of rows)")
+
+    _remember_map(game_map)
+
+    rows = len(game_map)
+    cols = max(len(row) for row in game_map)
+    total_cells = sum(len(row) for row in game_map)
+    result = {'success': True, 'rows': rows, 'cols': cols, 'total_cells': total_cells}
+    print(f"STORE_MAP: rows={rows} cols={cols} total_cells={total_cells}")
+    return {'statusCode': 200, 'body': json.dumps(result)}
+
+
 def _handle_count(body):
     """Deterministic map-tile counting for c3 (Memento) questions."""
     game_map = body.get('game_map', [])
     question = str(body.get('question', ''))
+
+    # The c3 question never carries the map (it was only shown once at game start).
+    # Fall back to the map remembered from that earlier sighting.
+    if not game_map:
+        game_map = _recall_map() or []
 
     # Fix jagged rows, same defensive handling as the Pathfinding tool
     if game_map:
@@ -224,7 +279,7 @@ def _handle_count(body):
         game_map = [row + ['normal'] * (max_cols - len(row)) for row in game_map]
 
     if not game_map:
-        return _err(400, 'Missing game_map')
+        return _err(400, 'No game_map available: none passed and none remembered from game start')
 
     if not question.strip():
         return _err(400, 'Missing question')

@@ -1,5 +1,37 @@
 # Changelog
 
+## v10 - Fix c3 Memory Trial map-recall loop (was losing a life)
+
+**Problem:** At the c3 "Memory Trial" tile the agent was asked a counting question
+("How many c4 challenges are on the map?") that did NOT include the map. The map is
+only presented once, at game start, where it is consumed by Pathfinding. `count`
+required a `game_map` and returned `400 Missing game_map` when none was passed, so
+the supervisor called `count` with no map, got a 400 every time, and retried in a
+loop (~9 calls observed) until the challenge failed and cost a life.
+
+**Approach A - auto-persist + fallback:**
+- **memoryquestion.py**:
+  - Added `GAME_MAP_KEY` plus `_remember_map()` / `_recall_map()` helpers backed by
+    the existing module-level `_memory_store` (persists across warm invocations).
+  - `lambda_handler` now auto-persists any incoming non-empty `game_map` before
+    dispatch, so any call that carries a map updates the remembered map.
+  - Added an explicit `store_map` action (`_handle_store_map`) returning
+    `{success, rows, cols, total_cells}` without echoing the full map (saves tokens).
+  - `_handle_count` now falls back to the remembered map when the call omits one, and
+    fails cleanly with a clear 400 (`No game_map available: none passed and none
+    remembered from game start`) when no map is available from either source.
+  - Door/key transform rules and routing are untouched.
+- **supervisor / memoryquestion prompts**: store the map via `store_map` at game
+  start (alongside Pathfinding); `count` recalls the remembered map so no `game_map`
+  is passed; added explicit anti-loop guidance to never repeat an identical failing
+  call (answer 0 or move on instead of retrying).
+- **tests**: added `TestMemoryMapRecall` (recall from store_map, recall from a prior
+  count call, clean error when no map ever seen, store_map dimension shape without
+  echoing the map, multi-type addition c1+c8, passed-map precedence + remembered-map
+  update). 115 tests pass.
+
+---
+
 ## v8 - Correct red/green door TRANSFORM rules (was returning raw key)
 
 **Problem:** v7 stored red/green keys correctly but returned the *raw* key value at

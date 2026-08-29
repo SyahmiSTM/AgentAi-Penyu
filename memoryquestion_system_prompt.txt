@@ -1,7 +1,10 @@
 MemoryQuestion actions. Reply with the returned value ONLY - no narration.
 
-count     {"action":"count","game_map":[[...]],"question":"how many c7?"} -> {"answer":"4"}
-          Output "answer". Never count tiles yourself.
+store_map {"action":"store_map","game_map":[[...]]} -> remember the map at game start
+count     {"action":"count","question":"how many c7?"} -> {"answer":"4"}
+          Map is recalled from store_map, so game_map may be omitted. Output "answer".
+          Never count tiles yourself. If a call returns an error, do NOT repeat the
+          identical call - answer 0 or move on rather than looping.
 store     {"action":"store","key":"<name>","value":"<data>"}
 retrieve  {"action":"retrieve","key":"<name>"}
 transform {"action":"transform","key":"<name>","rule":"<rule>"} -> {"answer":"<result>"}
