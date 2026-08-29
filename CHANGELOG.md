@@ -1,6 +1,52 @@
 # Changelog
 
-## v6 (Current) - Agent v5 prompts + all previous fixes
+## v8 - Correct red/green door TRANSFORM rules (was returning raw key)
+
+**Problem:** v7 stored red/green keys correctly but returned the *raw* key value at
+the door. A run proved this wrong: the green door rejected raw "fghi" and cost 5
+lives, ending the game at 7151. The doors transform the key.
+
+**Source of truth:** the official challenge descriptions:
+- Red Door (c30): "translate the code you receive by reading it backwards."
+- Green Door (c31): "replace letters with the numbers that represent them in order."
+
+### Changes
+- **memoryquestion.py**: added two transform rules:
+  - `reverse` -> read backwards ("shut" -> "tuhs")
+  - `alpha_positions` -> each letter to its 1-based alphabet position, concatenated
+    ("fghi" -> "6789"); non-letters dropped, case-insensitive.
+- **supervisor / memoryquestion prompts**: red/green doors now use `transform`
+  (reverse / alpha_positions), not `retrieve`. Removed the duplicated red/green
+  door block and consolidated all four doors into one section.
+- **tools/door_transform_probe.py**: harness that verifies the rules against the
+  confirmed (key -> answer) pairs.
+- **tests**: added red/green door transform tests + edge cases. 108 tests pass.
+
+---
+
+## v7 - Fix red/green key/door handling (game-ending bug)
+**Problem:** A run scored only 6916 and ended in LoseGame with 0 lives. The agent
+found "Green Key 1 is: fghi" and "Red Key 1 is: shut" but REFUSED them ("Sorry, the
+penyu cannot answer this question") instead of storing them. At the green door
+("What is green key 1?") nothing was stored, so the door challenge failed and cost
+**5 lives at once**, ending the game.
+
+**Root cause:** The supervisor and memoryquestion prompts only wired up grey (c32)
+and yellow (c33) keys/doors. Red (key c40 / door c30) and green (key c41 / door c31)
+pairs had NO routing, so key values fell through to the refusal path.
+
+### Changes
+- **Supervisor prompt**: added red key -> store door_key_c30, green key -> store
+  door_key_c31. Red/green doors ask for the key verbatim, so they use `retrieve`
+  (raw value), not `transform`. Added explicit "a key value is a fact to STORE,
+  never a question to refuse" guidance.
+- **MemoryQuestion prompt**: added red/green key/door mapping.
+- **Tests**: added TestRedGreenKeyDoors (red/green store+retrieve round trip,
+  not-found-before-store, no key collision). 102 tests pass.
+
+---
+
+## v6 - Agent v5 prompts + all previous fixes
 **Best Score: 6794 | Tokens: 1645 | Lives Lost: 2**
 
 ### Changes from baseline

@@ -12,7 +12,7 @@ Pathfinding(game_map, start_pos, strategy="key_first")
 CodeExecutor(question, code)                       code must print the answer
 MemoryQuestion(action="count", game_map, question)
 MemoryQuestion(action="store", key, value)
-MemoryQuestion(action="transform", key, rule)      rules: first2last2 | char5char7
+MemoryQuestion(action="transform", key, rule)      rules: first2last2 | char5char7 | reverse | alpha_positions
 WebScraper(question)
 
 ROUTING
@@ -32,12 +32,19 @@ No markdown, no code fences.
 Given a key value -> MemoryQuestion store, then reply: Thanks
   grey key   -> key="door_key_c32"
   yellow key -> key="door_key_c33"
+  red key    -> key="door_key_c30"
+  green key  -> key="door_key_c31"
+  A key value is a fact to STORE, never a question to refuse. Store it, reply Thanks.
 
-At a door -> MemoryQuestion transform, then output its "answer" verbatim.
+At a door ("What is <colour> key N?") -> MemoryQuestion transform, then output
+its "answer" verbatim. Every door transforms the key; never output the raw key.
   grey door   -> key="door_key_c32", rule="first2last2"
   yellow door -> key="door_key_c33", rule="char5char7"
-  Never count, index, or slice characters yourself. Never "correct" the tool's answer.
-  If it returns success:false the key was never stored - do not invent an answer.
+  red door    -> key="door_key_c30", rule="reverse"          (read backwards)
+  green door  -> key="door_key_c31", rule="alpha_positions"  (letters -> numbers)
+  Never count, index, slice, reverse, or number characters yourself. Never
+  "correct" the tool's answer. If it returns success:false the key was never
+  stored - do not invent an answer.
 
 Coins and spikes    -> no response needed.
 Anything else       -> answer the question that was actually asked, precisely.

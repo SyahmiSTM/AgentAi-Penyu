@@ -28,6 +28,22 @@ _TRANSFORM_RULES = {
         'fn': lambda v: v[4] + v[6],
         'describe': 'at least 7 characters (5th + 7th, 1-indexed)',
     },
+    # Red doors (c30): "read it backwards". "shut" -> "tuhs"
+    'reverse': {
+        'min_length': 1,
+        'fn': lambda v: v[::-1],
+        'describe': 'at least 1 character (reversed)',
+    },
+    # Green doors (c31): "replace letters with the numbers that represent them in
+    # order" -- each letter -> its 1-based alphabet position, concatenated.
+    # "fghi" -> "6789" (f=6, g=7, h=8, i=9). Non-letters are dropped.
+    'alpha_positions': {
+        'min_length': 1,
+        'fn': lambda v: ''.join(
+            str(ord(c) - 96) for c in v.lower() if 'a' <= c <= 'z'
+        ),
+        'describe': 'at least 1 alphabetic character (letter -> alphabet position)',
+    },
 }
 
 
@@ -72,8 +88,11 @@ def lambda_handler(event, context):
     Output (not found):
       { "success": false, "key": "door_key_c33", "error": "Key not found: door_key_c33" }
     Supported rules:
-      "first2last2" -> first 2 chars + last 2 chars   (e.g. "ABCDEF"   -> "ABEF")
-      "char5char7"  -> 5th char + 7th char, 1-indexed (e.g. "ABCDEFGH" -> "EG")
+      "first2last2"     -> first 2 chars + last 2 chars   (e.g. "ABCDEF"   -> "ABEF")
+      "char5char7"      -> 5th char + 7th char, 1-indexed (e.g. "ABCDEFGH" -> "EG")
+      "reverse"         -> read the value backwards        (e.g. "shut"     -> "tuhs")
+      "alpha_positions" -> each letter to its alphabet position, concatenated
+                           (e.g. "fghi" -> "6789")
     The raw stored value is never included in a successful transform response.
     """
     try:
