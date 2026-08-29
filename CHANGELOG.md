@@ -1,5 +1,29 @@
 # Changelog
 
+## v8 - Correct red/green door TRANSFORM rules (was returning raw key)
+
+**Problem:** v7 stored red/green keys correctly but returned the *raw* key value at
+the door. A run proved this wrong: the green door rejected raw "fghi" and cost 5
+lives, ending the game at 7151. The doors transform the key.
+
+**Source of truth:** the official challenge descriptions:
+- Red Door (c30): "translate the code you receive by reading it backwards."
+- Green Door (c31): "replace letters with the numbers that represent them in order."
+
+### Changes
+- **memoryquestion.py**: added two transform rules:
+  - `reverse` -> read backwards ("shut" -> "tuhs")
+  - `alpha_positions` -> each letter to its 1-based alphabet position, concatenated
+    ("fghi" -> "6789"); non-letters dropped, case-insensitive.
+- **supervisor / memoryquestion prompts**: red/green doors now use `transform`
+  (reverse / alpha_positions), not `retrieve`. Removed the duplicated red/green
+  door block and consolidated all four doors into one section.
+- **tools/door_transform_probe.py**: harness that verifies the rules against the
+  confirmed (key -> answer) pairs.
+- **tests**: added red/green door transform tests + edge cases. 108 tests pass.
+
+---
+
 ## v7 - Fix red/green key/door handling (game-ending bug)
 **Problem:** A run scored only 6916 and ended in LoseGame with 0 lives. The agent
 found "Green Key 1 is: fghi" and "Red Key 1 is: shut" but REFUSED them ("Sorry, the

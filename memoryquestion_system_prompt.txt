@@ -5,14 +5,16 @@ count     {"action":"count","game_map":[[...]],"question":"how many c7?"} -> {"a
 store     {"action":"store","key":"<name>","value":"<data>"}
 retrieve  {"action":"retrieve","key":"<name>"}
 transform {"action":"transform","key":"<name>","rule":"<rule>"} -> {"answer":"<result>"}
-          first2last2 = first 2 + last 2 chars      ("ABCDEF"   -> "ABEF")
-          char5char7  = 5th + 7th char, 1-indexed   ("ABCDEFGH" -> "EG")
+          first2last2     = first 2 + last 2 chars      ("ABCDEF"   -> "ABEF")
+          char5char7      = 5th + 7th char, 1-indexed   ("ABCDEFGH" -> "EG")
+          reverse         = read backwards              ("shut"     -> "tuhs")
+          alpha_positions = letters -> alphabet numbers ("fghi"     -> "6789")
 
-Doors:
-  grey key/door   -> transform key="door_key_c32", rule="first2last2"
-  yellow key/door -> transform key="door_key_c33", rule="char5char7"
-  red key/door    -> store on key value; retrieve key="door_key_c30" at door (raw value)
-  green key/door  -> store on key value; retrieve key="door_key_c31" at door (raw value)
+Doors: at the KEY, store; at the DOOR, transform (every door transforms the key).
+  grey key/door   -> store then transform key="door_key_c32", rule="first2last2"
+  yellow key/door -> store then transform key="door_key_c33", rule="char5char7"
+  red key/door    -> store then transform key="door_key_c30", rule="reverse"
+  green key/door  -> store then transform key="door_key_c31", rule="alpha_positions"
 A key value ("Red Key 1 is: shut") is data to store, never a question to refuse.
 
 CRITICAL: never count, index, or slice characters yourself, and never re-check or

@@ -832,6 +832,60 @@ class TestRedGreenKeyDoors(unittest.TestCase):
     def setUp(self):
         memoryquestion._memory_store.clear()
 
+    def test_red_door_reverse_transform(self):
+        """Red door (c30): 'read it backwards'. 'shut' -> 'tuhs'."""
+        _invoke(memoryquestion.lambda_handler, {
+            "action": "store", "key": "door_key_c30", "value": "shut",
+        })
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "transform", "key": "door_key_c30", "rule": "reverse",
+        })
+        self.assertTrue(result["success"])
+        self.assertEqual(result["answer"], "tuhs")
+
+    def test_green_door_alpha_positions_transform(self):
+        """Green door (c31): letters -> alphabet positions. 'fghi' -> '6789'."""
+        _invoke(memoryquestion.lambda_handler, {
+            "action": "store", "key": "door_key_c31", "value": "fghi",
+        })
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "transform", "key": "door_key_c31", "rule": "alpha_positions",
+        })
+        self.assertTrue(result["success"])
+        self.assertEqual(result["answer"], "6789")
+
+    def test_alpha_positions_full_range(self):
+        """a->1 ... z->26, concatenated. 'az' -> '126'."""
+        memoryquestion._memory_store["k"] = "az"
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "transform", "key": "k", "rule": "alpha_positions",
+        })
+        self.assertEqual(result["answer"], "126")
+
+    def test_alpha_positions_ignores_non_letters(self):
+        """Non-letters are dropped; case-insensitive. 'A1b!' -> '12'."""
+        memoryquestion._memory_store["k"] = "A1b!"
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "transform", "key": "k", "rule": "alpha_positions",
+        })
+        self.assertEqual(result["answer"], "12")
+
+    def test_reverse_preserves_all_chars(self):
+        """reverse keeps every character. 'ab12' -> '21ba'."""
+        memoryquestion._memory_store["k"] = "ab12"
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "transform", "key": "k", "rule": "reverse",
+        })
+        self.assertEqual(result["answer"], "21ba")
+
+    def test_red_door_transform_not_found_before_store(self):
+        """Red door hit before the key was stored reports not-found, not a crash."""
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "transform", "key": "door_key_c30", "rule": "reverse",
+        })
+        self.assertFalse(result["success"])
+        self.assertIn("Key not found", result["error"])
+
     def test_red_key_store_then_retrieve(self):
         """Red key stores under door_key_c30 and retrieves the raw value."""
         _invoke(memoryquestion.lambda_handler, {
