@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "fix",
   "description": "Make the c3 Memory Trial map-counting challenge reliable by remembering the game_map the first time any tool sees it and recalling it when the count question omits the map. Root cause: memoryquestion._handle_count returns _err(400, 'Missing game_map') when no map is passed, but the c3 challenge text never includes the map (it is only presented once at game start via pathfinding). The supervisor therefore calls count with no map, gets a 400 every time, and retries in a loop (~9 calls observed) until the challenge fails and a life is lost. Fix uses approach A (auto-persist + fallback): persist the map into the module-level _memory_store whenever memoryquestion sees one, expose an explicit store-map path, make _handle_count fall back to the remembered map, and update the supervisor + memoryquestion prompts so the agent stores the map at game start and does NOT retry a failing count. This is a single coherent unit of work. Do NOT touch door/key transform rules or routing.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "In memoryquestion.py, define a well-known constant for the remembered-map key, e.g. GAME_MAP_KEY = 'game_map' (module level near _memory_store).",
     "Add a helper _remember_map(game_map) that, given a non-empty list-of-lists game_map, stores a copy into _memory_store[GAME_MAP_KEY]. Add _recall_map() returning _memory_store.get(GAME_MAP_KEY). Keep them small and pure so they are easy to unit test.",
@@ -31,5 +31,5 @@
     "Run `git diff --stat main` and confirm only memoryquestion.py, memoryquestion_system_prompt.txt, supervisor_system_prompt.txt, tests/test_agent.py, CHANGELOG.md, and .agents/tasks/** are touched (no door/key transform logic changed)."
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Implemented approach A. memoryquestion.py: added GAME_MAP_KEY + _remember_map/_recall_map, auto-persist of any incoming non-empty game_map in lambda_handler before dispatch, new store_map action (_handle_store_map returns {success,rows,cols,total_cells} without echoing map), and _handle_count fallback to _recall_map() with clean 400 when no map anywhere. Door/key transform rules and routing untouched. Updated supervisor_system_prompt.txt (store_map at game start alongside Pathfinding, count needs no game_map, anti-loop rule) and memoryquestion_system_prompt.txt (store_map line, count recalls map, no-retry guidance). Added TestMemoryMapRecall (7 tests) with setUp AND tearDown clearing _memory_store to prevent a remembered map leaking into TestMemoryQuestion (which does not clear the store and has a missing-map test). Full suite: 115 tests pass (108 baseline + 7 new), 0 failures/errors. All 4 modules import OK. git diff --stat main shows only the 5 expected files + .agents. Committed as d5fbc26. Did NOT push or open a PR; stayed on branch fix/c3-memory-map-recall."
 }
