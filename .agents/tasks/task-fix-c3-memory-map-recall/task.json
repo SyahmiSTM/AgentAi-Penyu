@@ -1,0 +1,21 @@
+{
+  "task_id": "task-fix-c3-memory-map-recall",
+  "task_description": "Fix the c3 Memory Trial challenge: the agent loops (~9 calls) and fails when it hits the c3 tile because the map-counting question omits the game map (the map is only presented once at game start for pathfinding). Remember the map when first seen and recall it at c3 via memoryquestion, so the agent answers map-counting questions (including multi-type addition like c1 + c8) with a single correct call instead of looping.",
+  "status": "completed",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null,
+  "verification": {
+    "build": "pass",
+    "tests": "pass",
+    "test_quality": "pass",
+    "docker_build": "skipped",
+    "summary": "Final state after v2 review APPROVED. python3 -c import check passes for all 4 lambda modules. python3 -m unittest discover tests/ runs 117 tests (108 baseline + 9 new), 0 failures/0 errors. TestMemoryQuestion passes in isolation (order-independence fixed). Test quality reviewed and confirmed meaningful: the recall/auto-persist/store_map/empty-map-contract/jagged-dimension tests each fail if their fix is reverted. Door/key transform rules (_TRANSFORM_RULES, _handle_transform/_handle_store/_handle_retrieve) and door/key/refusal/intake routing unchanged (verified by diff grep). git diff --stat main (non-.agents) touches only memoryquestion.py, memoryquestion_system_prompt.txt, supervisor_system_prompt.txt, tests/test_agent.py, CHANGELOG.md. No Dockerfile in repo, so docker_build skipped."
+  },
+  "review": {
+    "iterations": 2,
+    "final_verdict": "APPROVED",
+    "v1_review": ".agents/tasks/task-fix-c3-memory-map-recall/2026-08-29-142036-review.md",
+    "v2_review": ".agents/tasks/task-fix-c3-memory-map-recall/2026-08-29-142815-review.md",
+    "notes": "v1 returned NEEDS_CHANGES with 4 issues (empty-map contract, order-dependent test, prompt-only anti-loop, jagged total_cells). Coder addressed all 4 in commit d1a61d0. v2 APPROVED with 0 blocking issues."
+  }
+}

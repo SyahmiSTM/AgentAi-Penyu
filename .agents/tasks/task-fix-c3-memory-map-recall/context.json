@@ -1,0 +1,23 @@
+{
+  "project_type": "Python AWS Lambda functions for AI agent game (AWS AI League turtle maze)",
+  "language": "Python 3.12 (invoke tests with python3, not python)",
+  "build_system": "No build system - pure Python lambdas, no packaging step",
+  "test_framework": "unittest - tests in tests/test_agent.py, uses _invoke() helper that calls lambda_handler(event, None) directly and json-parses the returned body",
+  "build_command": "python3 -c 'import memoryquestion; import pathfinding; import codeexecutor; import webscraper; print(\"OK\")'",
+  "test_command": "python3 -m unittest discover tests/",
+  "verification_instructions": "Run python3 -m unittest discover tests/ and confirm all tests pass. Baseline is 108 tests, all passing.",
+  "snapshot_or_generated_files": null,
+  "setup_instructions": "No setup needed. Python 3.12 available. No network required - all tests run offline with inline fixtures.",
+  "environment_constraints": "Network mode is restricted (offline). No external network calls in tests. Do NOT push or open PRs - orchestrator handles publishing. Work stays on branch fix/c3-memory-map-recall.",
+  "contribution_requirements": "No formal CONTRIBUTING.md. Follow existing patterns. Do NOT modify door/key logic (transform rules, key/door routing) - the red/green door fix is already merged on main and must stay untouched. CHANGELOG.md uses versioned entries (currently at v9); add a new v10 entry at the top.",
+  "key_patterns": "Each lambda has lambda_handler(event, context) returning {'statusCode': int, 'body': json_string}. Events can have a 'body' key (API Gateway style, possibly a JSON string) or be a direct dict. memoryquestion.py has a module-level _memory_store = {} dict that persists across warm invocations (i.e. for one game session). Actions: count, store, retrieve, transform. store/retrieve/transform use _memory_store; count currently recomputes from a passed-in game_map and does NOT use _memory_store. _handle_count uses ID_PATTERN (\\bc(\\d+)\\b) to find challenge IDs in the question and Counter to tally cells. _err(code, msg) helper for error responses. pathfinding.py receives the full game_map at game start and is the one place the map is reliably seen.",
+  "relevant_files": [
+    "memoryquestion.py",
+    "memoryquestion_system_prompt.txt",
+    "supervisor_system_prompt.txt",
+    "pathfinding.py",
+    "tests/test_agent.py",
+    "CHANGELOG.md"
+  ],
+  "directory_structure": "Flat repo: lambda .py files at root, per-tool system prompts as *_system_prompt.txt, supervisor_system_prompt.txt, tests/test_agent.py with inline fixtures, CHANGELOG.md, .agents/tasks/ with prior task folders."
+}
