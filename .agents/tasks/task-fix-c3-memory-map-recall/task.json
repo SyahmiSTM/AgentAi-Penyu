@@ -1,7 +1,14 @@
 {
   "task_id": "task-fix-c3-memory-map-recall",
   "task_description": "Fix the c3 Memory Trial challenge: the agent loops (~9 calls) and fails when it hits the c3 tile because the map-counting question omits the game map (the map is only presented once at game start for pathfinding). Remember the map when first seen and recall it at c3 via memoryquestion, so the agent answers map-counting questions (including multi-type addition like c1 + c8) with a single correct call instead of looping.",
-  "status": "in_progress",
+  "status": "completed",
   "feature_order": ["FEAT-001"],
-  "blocked_reason": null
+  "blocked_reason": null,
+  "verification": {
+    "build": "pass",
+    "tests": "pass",
+    "test_quality": "pass",
+    "docker_build": "skipped",
+    "summary": "python3 -c import check passes for all 4 lambda modules. python3 -m unittest discover tests/ runs 117 tests (108 baseline + 9 new: 8 in TestMemoryMapRecall including jagged-dimension consistency, plus 1 empty-passed-map contract test in TestMemoryQuestion), 0 failures/0 errors. Review-fix v1 addressed all 4 issues: (1) empty-vs-absent count contract made explicit (absent -> recall, [] -> 400); (2) TestMemoryQuestion made self-isolating with store-clearing setUp/tearDown; (3) anti-loop acknowledged as prompt-only by design (stateless Lambda); (4) store_map/count report identical padded dimensions via _padded_dimensions(). git diff --stat main touches only memoryquestion.py, memoryquestion_system_prompt.txt, supervisor_system_prompt.txt, tests/test_agent.py, CHANGELOG.md, and .agents/**. Door/key transform rules (_TRANSFORM_RULES, _handle_transform) and routing are unchanged. No Dockerfile in repo, so docker_build skipped."
+  }
 }

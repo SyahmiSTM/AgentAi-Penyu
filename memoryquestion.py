@@ -26,6 +26,20 @@ def _recall_map():
     """Return the remembered game_map (or None if none has been seen this session)."""
     return _memory_store.get(GAME_MAP_KEY)
 
+
+def _padded_dimensions(game_map):
+    """
+    Return (rows, cols, total_cells) as measured on the padded (rectangular) map.
+
+    count pads jagged rows to max_cols with 'normal' before tallying, so both
+    store_map and count must measure the padded map to report consistent dimensions
+    for non-rectangular maps.
+    """
+    rows = len(game_map)
+    cols = max(len(row) for row in game_map) if game_map else 0
+    total_cells = rows * cols
+    return rows, cols, total_cells
+
 # Deterministic transformations applied to stored values at door challenges.
 # The Lambda does the character arithmetic so the agent never has to count or slice
 # characters itself (LLMs are unreliable at character-position arithmetic).
@@ -133,9 +147,12 @@ def lambda_handler(event, context):
         # Determine action
         action = body.get('action')
 
-        # Backward compatibility: no action but game_map + question present -> count
+        # Backward compatibility: no action but a 'game_map' key + 'question' present
+        # -> count. We route on the PRESENCE of the game_map key (even if empty) rather
+        # than its truthiness so _handle_count owns the empty-vs-absent contract and
+        # returns its descriptive empty-map error instead of a generic "Missing action".
         if action is None:
-            if body.get('game_map') and body.get('question'):
+            if 'game_map' in body and body.get('question'):
                 action = 'count'
             else:
                 return _err(400, "Missing 'action' field. Supported actions: count, store, retrieve, transform")
@@ -255,9 +272,11 @@ def _handle_store_map(body):
 
     _remember_map(game_map)
 
-    rows = len(game_map)
-    cols = max(len(row) for row in game_map)
-    total_cells = sum(len(row) for row in game_map)
+    # Report dimensions on the padded (rectangular) map so store_map and count agree
+    # on rows/cols/total_cells for jagged maps. count pads jagged rows to max_cols
+    # with 'normal' before tallying; measuring the padded map here keeps the two
+    # confirmation numbers consistent.
+    rows, cols, total_cells = _padded_dimensions(game_map)
     result = {'success': True, 'rows': rows, 'cols': cols, 'total_cells': total_cells}
     print(f"STORE_MAP: rows={rows} cols={cols} total_cells={total_cells}")
     return {'statusCode': 200, 'body': json.dumps(result)}
@@ -265,21 +284,26 @@ def _handle_store_map(body):
 
 def _handle_count(body):
     """Deterministic map-tile counting for c3 (Memento) questions."""
-    game_map = body.get('game_map', [])
     question = str(body.get('question', ''))
 
-    # The c3 question never carries the map (it was only shown once at game start).
-    # Fall back to the map remembered from that earlier sighting.
-    if not game_map:
-        game_map = _recall_map() or []
+    # Distinguish an ABSENT map key from an explicitly-passed EMPTY map:
+    #   - map key absent    -> the c3 recall case: fall back to the map remembered
+    #                          from game start (it is never re-sent with the question).
+    #   - map key == []      -> a deliberate caller error: an empty map is not a valid
+    #                          board, so error rather than silently recalling. This
+    #                          keeps the pre-existing count contract explicit.
+    if 'game_map' in body:
+        game_map = body.get('game_map')
+        if not isinstance(game_map, list) or not game_map:
+            return _err(400, "Passed 'game_map' is empty: expected a non-empty list of rows")
+    else:
+        game_map = _recall_map()
+        if not game_map:
+            return _err(400, 'No game_map available: none passed and none remembered from game start')
 
     # Fix jagged rows, same defensive handling as the Pathfinding tool
-    if game_map:
-        max_cols = max(len(row) for row in game_map)
-        game_map = [row + ['normal'] * (max_cols - len(row)) for row in game_map]
-
-    if not game_map:
-        return _err(400, 'No game_map available: none passed and none remembered from game start')
+    max_cols = max(len(row) for row in game_map)
+    game_map = [row + ['normal'] * (max_cols - len(row)) for row in game_map]
 
     if not question.strip():
         return _err(400, 'Missing question')
@@ -300,14 +324,17 @@ def _handle_count(body):
     breakdown = {cid: counts.get(cid, 0) for cid in seen}
     total = sum(breakdown.values())
 
+    # game_map is already padded to a rectangle above, so _padded_dimensions matches
+    # what store_map reports for the same (possibly jagged) source map.
+    rows, cols, total_cells = _padded_dimensions(game_map)
     result = {
         'answer': str(total),
         'breakdown': breakdown,
         # 'map_summary' (a tally of every tile type on the map) is deliberately not
         # returned: the agent only needs the count it asked for, and the full tally
         # costs input tokens on every Memento challenge.
-        'dimensions': {'rows': len(game_map), 'cols': len(game_map[0]) if game_map else 0},
-        'total_cells': sum(len(row) for row in game_map),
+        'dimensions': {'rows': rows, 'cols': cols},
+        'total_cells': total_cells,
         'question_ids_found': seen,
     }
     print(f"RESULT: question={question!r} ids={seen} breakdown={breakdown} total={total}")

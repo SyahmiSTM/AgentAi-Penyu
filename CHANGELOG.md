@@ -17,10 +17,23 @@ loop (~9 calls observed) until the challenge failed and cost a life.
     dispatch, so any call that carries a map updates the remembered map.
   - Added an explicit `store_map` action (`_handle_store_map`) returning
     `{success, rows, cols, total_cells}` without echoing the full map (saves tokens).
-  - `_handle_count` now falls back to the remembered map when the call omits one, and
-    fails cleanly with a clear 400 (`No game_map available: none passed and none
-    remembered from game start`) when no map is available from either source.
+  - `_handle_count` now falls back to the remembered map only when the `game_map`
+    key is ABSENT (the c3 recall case). An explicitly-passed empty map (`game_map: []`)
+    is treated as a deliberate caller error (`Passed 'game_map' is empty`), preserving
+    the original count contract instead of silently recalling. When the key is absent
+    and nothing is remembered, it fails cleanly with a clear 400 (`No game_map
+    available: none passed and none remembered from game start`).
+  - `store_map` and `count` now report `rows`/`cols`/`total_cells` from the padded
+    (rectangular) map via a shared `_padded_dimensions()` helper, so a jagged source
+    map yields identical confirmation numbers from both paths.
+  - No-action backward-compat routing now dispatches to `count` on the PRESENCE of a
+    `game_map` key (even if empty) so `_handle_count` owns the empty-vs-absent contract.
   - Door/key transform rules and routing are untouched.
+- **Anti-loop scope:** loop prevention is enforced in the prompts (never repeat an
+  identical failing call; answer 0 or move on), not in the Lambda. The Lambda is
+  stateless per question and cannot know the challenge is failing, so a genuine no-map
+  error still returns a retryable 400 by design; the code change only removes the
+  spurious no-map error for the normal recall path.
 - **supervisor / memoryquestion prompts**: store the map via `store_map` at game
   start (alongside Pathfinding); `count` recalls the remembered map so no `game_map`
   is passed; added explicit anti-loop guidance to never repeat an identical failing
@@ -28,7 +41,10 @@ loop (~9 calls observed) until the challenge failed and cost a life.
 - **tests**: added `TestMemoryMapRecall` (recall from store_map, recall from a prior
   count call, clean error when no map ever seen, store_map dimension shape without
   echoing the map, multi-type addition c1+c8, passed-map precedence + remembered-map
-  update). 115 tests pass.
+  update, jagged-map dimension consistency between store_map and count). Made
+  `TestMemoryQuestion` self-isolating (store-clearing `setUp`/`tearDown`) and added an
+  empty-passed-map-errors-even-when-a-map-is-remembered test to lock in the contract.
+  117 tests pass.
 
 ---
 
