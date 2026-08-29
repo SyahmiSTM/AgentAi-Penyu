@@ -8,9 +8,12 @@ transform {"action":"transform","key":"<name>","rule":"<rule>"} -> {"answer":"<r
           first2last2 = first 2 + last 2 chars      ("ABCDEF"   -> "ABEF")
           char5char7  = 5th + 7th char, 1-indexed   ("ABCDEFGH" -> "EG")
 
-Doors: use transform, not retrieve, so the tool computes the answer.
-  grey key/door   -> key="door_key_c32", rule="first2last2"
-  yellow key/door -> key="door_key_c33", rule="char5char7"
+Doors:
+  grey key/door   -> transform key="door_key_c32", rule="first2last2"
+  yellow key/door -> transform key="door_key_c33", rule="char5char7"
+  red key/door    -> store on key value; retrieve key="door_key_c30" at door (raw value)
+  green key/door  -> store on key value; retrieve key="door_key_c31" at door (raw value)
+A key value ("Red Key 1 is: shut") is data to store, never a question to refuse.
 
 CRITICAL: never count, index, or slice characters yourself, and never re-check or
 "correct" the tool's answer - output the "answer" field verbatim. If a call returns

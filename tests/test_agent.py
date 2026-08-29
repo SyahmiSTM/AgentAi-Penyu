@@ -817,6 +817,77 @@ class TestMemoryStoreRetrieve(unittest.TestCase):
 
 
 # ===========================================================================
+# RED / GREEN KEY-DOOR TESTS (raw-value doors, no transform)
+# ===========================================================================
+class TestRedGreenKeyDoors(unittest.TestCase):
+    """
+    Red (key c40 / door c30) and green (key c41 / door c31) doors ask for the
+    key verbatim ("What is green key 1?") and expect the raw stored value back --
+    unlike grey/yellow doors which apply a character transform.
+
+    Regression guard for the run that lost 5 lives at a green door because the
+    key ("Green Key 1 is: fghi") was refused instead of stored.
+    """
+
+    def setUp(self):
+        memoryquestion._memory_store.clear()
+
+    def test_red_key_store_then_retrieve(self):
+        """Red key stores under door_key_c30 and retrieves the raw value."""
+        _invoke(memoryquestion.lambda_handler, {
+            "action": "store",
+            "key": "door_key_c30",
+            "value": "shut",
+        })
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "retrieve",
+            "key": "door_key_c30",
+        })
+        self.assertTrue(result["success"])
+        self.assertEqual(result["value"], "shut")
+
+    def test_green_key_store_then_retrieve(self):
+        """Green key stores under door_key_c31 and retrieves the raw value."""
+        _invoke(memoryquestion.lambda_handler, {
+            "action": "store",
+            "key": "door_key_c31",
+            "value": "fghi",
+        })
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "retrieve",
+            "key": "door_key_c31",
+        })
+        self.assertTrue(result["success"])
+        self.assertEqual(result["value"], "fghi")
+
+    def test_green_door_before_key_stored_reports_not_found(self):
+        """A green door hit before the key was stored reports not-found, not a crash."""
+        result = _invoke(memoryquestion.lambda_handler, {
+            "action": "retrieve",
+            "key": "door_key_c31",
+        })
+        self.assertFalse(result["success"])
+        self.assertIn("Key not found", result["error"])
+
+    def test_red_and_green_keys_do_not_collide(self):
+        """Red and green keys use distinct slots and never overwrite each other."""
+        _invoke(memoryquestion.lambda_handler, {
+            "action": "store", "key": "door_key_c30", "value": "shut",
+        })
+        _invoke(memoryquestion.lambda_handler, {
+            "action": "store", "key": "door_key_c31", "value": "fghi",
+        })
+        red = _invoke(memoryquestion.lambda_handler, {
+            "action": "retrieve", "key": "door_key_c30",
+        })
+        green = _invoke(memoryquestion.lambda_handler, {
+            "action": "retrieve", "key": "door_key_c31",
+        })
+        self.assertEqual(red["value"], "shut")
+        self.assertEqual(green["value"], "fghi")
+
+
+# ===========================================================================
 # MEMORY TRANSFORM TESTS (door unlock character arithmetic)
 # ===========================================================================
 class TestMemoryTransform(unittest.TestCase):
